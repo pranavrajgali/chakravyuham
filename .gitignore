@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+
+# Environments
+.env/
+.conda/
+
+# Data (important)
+data/raw/
+data/processed/
+
+# Models
+results/
+*.pkl
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
