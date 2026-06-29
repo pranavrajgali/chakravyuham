@@ -11,8 +11,7 @@ venv/
 data/raw/
 data/processed/
 
-# Models
-results/
+# Models (regenerable, don't commit)
 *.pkl
 
 # Jupyter
@@ -20,3 +19,5 @@ results/
 
 # OS
 .DS_Store
+
+.vscode/

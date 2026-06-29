@@ -8,7 +8,7 @@ class XGBoostModel(BaseModel):
 
     def __init__(self, params=None):
         params = params or {}
-        self.model = XGBClassifier(**params, use_label_encoder=False, eval_metric="mlogloss")
+        self.model = XGBClassifier(**params, eval_metric="mlogloss")
         self.label_encoder = LabelEncoder()
 
     def train(self, X_train, y_train):

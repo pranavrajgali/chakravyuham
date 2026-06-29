@@ -3,6 +3,8 @@ import os
 import json
 import pickle
 import shutil
+import datetime
+import re
 from sklearn.model_selection import train_test_split
 
 from utils.config import load_config
@@ -11,8 +13,31 @@ from features.pipeline import build_features
 from models.registry import get_model
 from evaluation.metrics import compute_metrics
 from evaluation.benchmark import run_benchmark
+from evaluation.visualize import generate_visuals
 
-config = load_config(sys.argv[1])
+
+def select_config():
+    config_files = sorted(f for f in os.listdir("configs") if f.endswith(".yaml") or f.endswith(".yml"))
+
+    if not config_files:
+        print("No config files found in configs/")
+        sys.exit(1)
+
+    print("Available configs:")
+    for i, name in enumerate(config_files):
+        print(f"  [{i}] {name}")
+
+    choice = input("Select a config by number: ").strip()
+    try:
+        index = int(choice)
+        return os.path.join("configs", config_files[index])
+    except (ValueError, IndexError):
+        print("Invalid selection.")
+        sys.exit(1)
+
+
+config_path = select_config()
+config = load_config(config_path)
 
 loader = get_loader(config["dataset"])
 df = loader.load()
@@ -34,11 +59,16 @@ predictions = model.predict(X_test)
 metrics = compute_metrics(y_test, predictions)
 benchmark = run_benchmark(model, X_test, thresholds=config.get("thresholds"))
 
-results_dir = config["results_dir"]
+run_name = input("Name this experiment run: ").strip()
+safe_name = re.sub(r"[^a-zA-Z0-9_-]", "_", run_name.replace(" ", "_"))
+timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+results_dir = f"results/{safe_name}_{timestamp}"
 os.makedirs(results_dir, exist_ok=True)
 
 with open(os.path.join(results_dir, "metrics.json"), "w") as f:
     json.dump(metrics, f, indent=2)
+
+generate_visuals(metrics, results_dir)
 
 with open(os.path.join(results_dir, "benchmark.json"), "w") as f:
     json.dump(benchmark, f, indent=2)
@@ -46,7 +76,7 @@ with open(os.path.join(results_dir, "benchmark.json"), "w") as f:
 with open(os.path.join(results_dir, "model.pkl"), "wb") as f:
     pickle.dump(model, f)
 
-shutil.copy(sys.argv[1], os.path.join(results_dir, "config.yaml"))
+shutil.copy(config_path, os.path.join(results_dir, "config.yaml"))
 
 print("Accuracy:", metrics["accuracy"])
 print("Benchmark:", benchmark)

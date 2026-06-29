@@ -1,18 +1,13 @@
 import time
 import pickle
 import os
-import tracemalloc
+import psutil
 
 
 def measure_inference_latency(model, X_test, n_runs=100):
-    """
-    Measures average per-sample inference latency in ms.
-    Uses a small repeated subset to get a stable estimate.
-    """
     sample = X_test.iloc[:n_runs] if hasattr(X_test, "iloc") else X_test[:n_runs]
 
-    # warm-up run (avoids first-call overhead skewing results)
-    model.predict(sample)
+    model.predict(sample)  # warm-up
 
     start = time.perf_counter()
     model.predict(sample)
@@ -24,9 +19,6 @@ def measure_inference_latency(model, X_test, n_runs=100):
 
 
 def measure_model_size(model, tmp_path="results/_tmp_model.pkl"):
-    """
-    Measures serialized model size in MB by pickling to disk.
-    """
     os.makedirs(os.path.dirname(tmp_path), exist_ok=True)
     with open(tmp_path, "wb") as f:
         pickle.dump(model, f)
@@ -38,24 +30,21 @@ def measure_model_size(model, tmp_path="results/_tmp_model.pkl"):
 
 def measure_memory_usage(model, X_test, n_runs=100):
     """
-    Approximate peak memory used during inference, in MB.
+    Approximate memory used during inference, in MB, using actual
+    process RSS (resident set size) rather than tracemalloc's
+    Python-heap-only tracking.
     """
     sample = X_test.iloc[:n_runs] if hasattr(X_test, "iloc") else X_test[:n_runs]
+    process = psutil.Process(os.getpid())
 
-    tracemalloc.start()
+    mem_before = process.memory_info().rss / (1024 * 1024)
     model.predict(sample)
-    current, peak = tracemalloc.get_traced_memory()
-    tracemalloc.stop()
+    mem_after = process.memory_info().rss / (1024 * 1024)
 
-    peak_mb = peak / (1024 * 1024)
-    return peak_mb
+    return max(mem_after - mem_before, 0.0)
 
 
 def run_benchmark(model, X_test, thresholds=None):
-    """
-    Runs all benchmark measurements and checks against thresholds if provided.
-    thresholds example: {"max_latency_ms": 5, "max_model_size_mb": 10}
-    """
     latency_ms = measure_inference_latency(model, X_test)
     size_mb = measure_model_size(model)
     memory_mb = measure_memory_usage(model, X_test)

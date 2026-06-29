@@ -3,13 +3,12 @@ dataset: otids
 features:
   - basic
 
-model: random_forest
+model: xgboost
 
 params:
   n_estimators: 100
-  max_depth: 16
-  min_samples_leaf: 10
-  min_samples_split: 20
+  max_depth: 6
+  learning_rate: 0.1
   random_state: 42
 
 split:
@@ -17,4 +16,4 @@ split:
   stratify: true
   shuffle: true
 
-results_dir: results/exp_rf_basic
+results_dir: results/exp_xgb_basic
