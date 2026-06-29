@@ -5,6 +5,7 @@ __pycache__/
 # Environments
 .env/
 .conda/
+venv/
 
 # Data (important)
 data/raw/
