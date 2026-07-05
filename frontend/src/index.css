@@ -1,0 +1,226 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Oswald:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+/* Force class-based dark mode instead of media queries in Tailwind CSS v4 */
+@variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: "Plus Jakarta Sans", "Inter", sans-serif;
+  --font-title: "Oswald", "Inter", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  --color-bento-bg: var(--bento-bg);
+  --color-bento-card: var(--bento-card);
+  --color-bento-border: var(--bento-border);
+  
+  --animate-glitch: glitch 0.2s linear infinite;
+  --animate-pulse-slow: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  
+  @keyframes glitch {
+    0% { transform: translate(0) }
+    20% { transform: translate(-2px, 1px) }
+    40% { transform: translate(-1px, -1px) }
+    60% { transform: translate(2px, 1px) }
+    80% { transform: translate(1px, -1px) }
+    100% { transform: translate(0) }
+  }
+}
+
+:root {
+  --bento-bg: #F1F5F9; /* Enhanced off-white contrast */
+  --bento-card: #FFFFFF;
+  --bento-border: #CBD5E1; /* Crisper slate-300 borders instead of slate-200 */
+}
+
+:root.dark, .dark {
+  --bento-bg: #030712; /* Rich ink-black for high depth contrast */
+  --bento-card: #0B0F19; /* Deeper slate-950 variant */
+  --bento-border: #334155; /* Sharp slate-700 borders instead of slate-800 */
+  color-scheme: dark;
+}
+
+/* Accessibility & High Contrast text overrides */
+
+/* Dark mode utility overrides for explicit color classes */
+.dark {
+  background-color: #030712;
+  color: #F8FAFC;
+}
+
+.dark .bg-white {
+  background-color: #0B0F19 !important;
+}
+
+.dark .bg-slate-50 {
+  background-color: #111827 !important;
+}
+
+.dark .bg-slate-100 {
+  background-color: #1F2937 !important;
+}
+
+.dark .bg-slate-200 {
+  background-color: #374151 !important;
+}
+
+.dark .border-slate-100,
+.dark .border-slate-200 {
+  border-color: #334155 !important;
+}
+
+.dark .border-slate-300 {
+  border-color: #4B5563 !important;
+}
+
+/* Alert badge and background corrections for dark mode */
+.dark .bg-emerald-50 {
+  background-color: rgba(16, 185, 129, 0.1) !important;
+}
+.dark .border-emerald-200 {
+  border-color: rgba(16, 185, 129, 0.3) !important;
+}
+.dark .bg-red-50 {
+  background-color: rgba(239, 68, 68, 0.1) !important;
+}
+.dark .border-red-200 {
+  border-color: rgba(239, 68, 68, 0.3) !important;
+}
+.dark .bg-orange-50 {
+  background-color: rgba(249, 115, 22, 0.1) !important;
+}
+.dark .border-orange-200 {
+  border-color: rgba(249, 115, 22, 0.3) !important;
+}
+.dark .bg-purple-50 {
+  background-color: rgba(168, 85, 247, 0.1) !important;
+}
+.dark .border-purple-200 {
+  border-color: rgba(168, 85, 247, 0.3) !important;
+}
+.dark .bg-amber-50 {
+  background-color: rgba(245, 158, 11, 0.1) !important;
+}
+.dark .border-amber-200 {
+  border-color: rgba(245, 158, 11, 0.3) !important;
+}
+.dark .bg-sky-50 {
+  background-color: rgba(14, 165, 233, 0.1) !important;
+}
+.dark .border-sky-100 {
+  border-color: rgba(14, 165, 233, 0.2) !important;
+}
+
+/* Input, select and custom element styling */
+.dark input,
+.dark select,
+.dark textarea {
+  background-color: #0F172A !important;
+  color: #E2E8F0 !important;
+  border-color: #1E293B !important;
+}
+
+.dark input::placeholder {
+  color: #475569 !important;
+}
+
+.dark select option {
+  background-color: #0F172A !important;
+  color: #E2E8F0 !important;
+}
+
+/* Custom crisp outline indicators */
+.glow-emerald {
+  border-color: rgba(16, 185, 129, 0.4) !important;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.15);
+}
+
+.glow-red {
+  border-color: rgba(239, 68, 68, 0.4) !important;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.15);
+}
+
+.glow-purple {
+  border-color: rgba(168, 85, 247, 0.4) !important;
+  box-shadow: 0 0 12px rgba(168, 85, 247, 0.15);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(241, 245, 249, 0.5);
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.3);
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.5);
+  border-radius: 4px;
+}
+
+/* Light Mode Only High-Contrast Typography Accessibility Overrides */
+html:not(.dark) .text-slate-300 {
+  color: #64748b !important; /* Increased to slate-500 */
+}
+html:not(.dark) .text-slate-400 {
+  color: #475569 !important; /* Increased to slate-600 */
+}
+html:not(.dark) .text-slate-450,
+html:not(.dark) .text-slate-500 {
+  color: #334155 !important; /* Increased to slate-700 */
+}
+html:not(.dark) .text-slate-600 {
+  color: #0f172a !important; /* Increased to slate-900 */
+}
+html:not(.dark) .text-slate-700 {
+  color: #1e293b !important; /* Crisp slate-800 */
+}
+html:not(.dark) .text-slate-800 {
+  color: #0f172a !important; /* Crisp slate-900 */
+}
+html:not(.dark) .text-slate-900 {
+  color: #020617 !important; /* Extra crisp slate-950 */
+}
+
+/* Dark Mode High-Contrast Typography Accessibility Overrides */
+.dark .text-slate-300 {
+  color: #cbd5e1 !important; /* Increased to slate-300 */
+}
+.dark .text-slate-400 {
+  color: #94a3b8 !important; /* Increased to slate-400 */
+}
+.dark .text-slate-450 {
+  color: #cbd5e1 !important; /* Increased to slate-300 */
+}
+.dark .text-slate-500 {
+  color: #94a3b8 !important; /* Increased to slate-400 */
+}
+.dark .text-slate-600 {
+  color: #cbd5e1 !important; /* Increased to slate-300 */
+}
+.dark .text-slate-700 {
+  color: #e2e8f0 !important; /* Increased to slate-200 */
+}
+.dark .text-slate-800 {
+  color: #f1f5f9 !important; /* Increased to slate-100 */
+}
+.dark .text-slate-900 {
+  color: #f8fafc !important; /* Increased to slate-50 */
+}
+.dark .text-slate-950 {
+  color: #f8fafc !important; /* Increased to slate-50 */
+}
+
+/* Dark Mode Scrollbar Overrides */
+.dark .custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.5) !important;
+}
+
+

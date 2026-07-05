@@ -1,0 +1,26 @@
+dataset: otids
+
+features:
+  - basic
+  - advanced
+
+drop_raw_features: false
+
+model: lightgbm
+
+params:
+  n_estimators: 100
+  max_depth: 6
+  min_child_weight: 15
+  num_leaves: 31
+  learning_rate: 0.1
+  random_state: 42
+  feature_fraction: 0.2
+
+split:
+  block_size_sec: 10
+  train_ratio: 0.70
+  val_ratio: 0.15
+  test_ratio: 0.15
+
+results_dir: results/exp_lgb_basic

@@ -1,0 +1,86 @@
+{
+  "accuracy": 0.9999959991790316,
+  "per_class": {
+    "dos": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "support": 121844,
+      "fpr": 0.0
+    },
+    "fuzzy": {
+      "precision": 0.9999123279435893,
+      "recall": 0.9999624243790629,
+      "f1": 0.9999373755338736,
+      "support": 79839,
+      "fpr": 3.4062000626740812e-06
+    },
+    "gear": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "support": 117281,
+      "fpr": 0.0
+    },
+    "normal": {
+      "precision": 0.9999985401971317,
+      "recall": 0.9999965937999373,
+      "f1": 0.9999975669975875,
+      "support": 2055076,
+      "fpr": 0.0
+    },
+    "rpm": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "support": 125447,
+      "fpr": 0.0
+    }
+  },
+  "confusion_matrix": [
+    [
+      121844,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      79836,
+      0,
+      3,
+      0
+    ],
+    [
+      0,
+      0,
+      117281,
+      0,
+      0
+    ],
+    [
+      0,
+      7,
+      0,
+      2055069,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      125447
+    ]
+  ],
+  "confusion_matrix_labels": [
+    "dos",
+    "fuzzy",
+    "gear",
+    "normal",
+    "rpm"
+  ],
+  "classification_report_text": "              precision    recall  f1-score   support\n\n         dos       1.00      1.00      1.00    121844\n       fuzzy       1.00      1.00      1.00     79839\n        gear       1.00      1.00      1.00    117281\n      normal       1.00      1.00      1.00   2055076\n         rpm       1.00      1.00      1.00    125447\n\n    accuracy                           1.00   2499487\n   macro avg       1.00      1.00      1.00   2499487\nweighted avg       1.00      1.00      1.00   2499487\n",
+  "fpr_overall": 3.4062000626740812e-06
+}

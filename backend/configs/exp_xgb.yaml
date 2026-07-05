@@ -1,0 +1,24 @@
+dataset: otids
+
+features:
+  - basic
+  - advanced
+
+drop_raw_features: false
+
+model: xgboost
+
+params:
+  n_estimators: 100
+  max_depth: 6
+  learning_rate: 0.1
+  random_state: 42
+  colsample_bytree: 0.2
+
+split:
+  block_size_sec: 10
+  train_ratio: 0.70
+  val_ratio: 0.15
+  test_ratio: 0.15
+
+results_dir: results/exp_xgb_basic

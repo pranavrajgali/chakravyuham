@@ -1,0 +1,13 @@
+{
+  "model_parameters": 228,
+  "model_size_kb": 3.99,
+  "avg_latency_ms": 1.1356,
+  "p95_latency_ms": 1.4362,
+  "overall_accuracy": 0.8081,
+  "macro_avg": {
+    "precision": 0.6753844026133182,
+    "recall": 0.5896275948766041,
+    "f1-score": 0.5175053524126845,
+    "support": 82845.0
+  }
+}

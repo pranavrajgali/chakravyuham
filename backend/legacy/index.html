@@ -1,0 +1,1306 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chakravyuham - Standalone Protocol Gateway IDS & CAN Bus Monitor</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Tailwind Config for Dark Mode and Fonts -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'Fira Code', 'monospace']
+                    },
+                    colors: {
+                        slate: {
+                            450: '#94a3b8',
+                            850: '#1e293b'
+                        }
+                    },
+                    letterSpacing: {
+                        widest: '.25em',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap"
+        rel="stylesheet">
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+
+        @keyframes pulse-ring {
+            0% {
+                transform: scale(0.95);
+                opacity: 0.5;
+            }
+
+            50% {
+                transform: scale(1.1);
+                opacity: 0.8;
+            }
+
+            100% {
+                transform: scale(0.95);
+                opacity: 0.5;
+            }
+        }
+
+        .pulse-glow {
+            animation: pulse-ring 2s infinite ease-in-out;
+        }
+    </style>
+</head>
+
+<body
+    class="bg-slate-50 dark:bg-[#0F172A] text-slate-800 dark:text-slate-100 min-h-screen font-sans transition-colors duration-300">
+
+    <!-- Wrapper Grid -->
+    <div class="max-w-[1600px] mx-auto p-4 md:p-6 space-y-6">
+
+        <!-- Top Navigation Header -->
+        <header
+            class="flex flex-col md:flex-row justify-between items-start md:items-center bg-white dark:bg-[#1E293B]/70 border border-slate-200 dark:border-slate-800/80 p-5 rounded-2xl backdrop-blur-md shadow-sm gap-4">
+            <div class="flex items-center gap-4">
+                <!-- Brand Icon -->
+                <div
+                    class="bg-indigo-600/10 dark:bg-emerald-500/10 p-3 rounded-xl border border-indigo-500/20 dark:border-emerald-500/20 text-indigo-600 dark:text-emerald-400">
+                    <i data-lucide="shield-check" class="h-8 w-8"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <h1
+                            class="text-2xl md:text-3xl font-medium tracking-[0.2em] text-slate-800 dark:text-slate-100 uppercase font-mono">
+                            Chakravyuham
+                        </h1>
+                        <span
+                            class="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] uppercase font-mono font-bold px-2 py-0.5 rounded border border-emerald-500/20">
+                            V2.4.1-Standalone
+                        </span>
+                    </div>
+                    <p
+                        class="text-[10px] md:text-xs text-slate-500 dark:text-slate-400 mt-1 uppercase tracking-wider font-mono">
+                        Protocol-Agnostic Gateway IDS & Live CAN Bus Network Monitor
+                    </p>
+                </div>
+            </div>
+
+            <!-- Quick Telemetry & Controls -->
+            <div class="flex items-center gap-4 flex-wrap w-full md:w-auto justify-end">
+                <!-- Live Badge -->
+                <div
+                    class="flex items-center gap-2 bg-slate-100 dark:bg-slate-800/60 px-3.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800">
+                    <span class="relative flex h-2.5 w-2.5">
+                        <span id="system-glow"
+                            class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span id="system-indicator"
+                            class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                    </span>
+                    <span class="text-xs font-mono font-semibold" id="system-status">SYS_STATUS: OPTIMAL</span>
+                </div>
+
+                <!-- Theme Toggle Button -->
+                <button onclick="toggleTheme()"
+                    class="bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700/80 border border-slate-200 dark:border-slate-800 p-2.5 rounded-xl cursor-pointer transition-all"
+                    title="Toggle Theme">
+                    <i id="theme-icon" data-lucide="sun" class="h-4.5 w-4.5 text-amber-500 dark:text-slate-300"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content Layout -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+            <!-- Column Left: Simulation Topology & Security Centers (8 Cols) -->
+            <div class="lg:col-span-8 space-y-6">
+
+                <!-- Panel 1: Live CAN Bus Topology Canvas -->
+                <div
+                    class="bg-white dark:bg-[#111827]/90 border border-slate-200 dark:border-slate-800/90 rounded-2xl shadow-sm overflow-hidden flex flex-col">
+                    <div
+                        class="border-b border-slate-200 dark:border-slate-800/80 px-5 py-4 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/30">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="network" class="h-4 w-4 text-sky-500"></i>
+                            <span
+                                class="text-xs font-bold uppercase tracking-wider font-mono text-slate-700 dark:text-slate-300">Interactive
+                                Bus Topology Stage</span>
+                        </div>
+                        <div class="flex items-center gap-1.5 text-[10px] font-mono text-slate-450">
+                            <span class="w-2 h-2 rounded-full bg-sky-500 inline-block"></span>
+                            <span>CAN-High</span>
+                            <span class="w-2 h-2 rounded-full bg-blue-500 inline-block ml-2"></span>
+                            <span>CAN-Low</span>
+                        </div>
+                    </div>
+
+                    <!-- Topology Render Window -->
+                    <div class="relative flex-1 bg-slate-950 p-1 flex items-center justify-center min-h-[300px]">
+                        <canvas id="topologyCanvas" class="w-full h-[320px] cursor-pointer"></canvas>
+
+                        <!-- Hover Node Detail Tooltip Overlay -->
+                        <div id="nodeTooltip"
+                            class="absolute hidden bg-slate-900/95 border border-slate-700 text-white text-xs p-3.5 rounded-xl shadow-xl backdrop-blur-md pointer-events-none w-64 max-w-full">
+                            <h4 id="tooltipTitle"
+                                class="font-bold border-b border-slate-700 pb-1 mb-1.5 text-indigo-400 font-mono text-[11px] uppercase tracking-wider">
+                                Node details</h4>
+                            <div class="space-y-1 font-mono text-[10px] text-slate-300">
+                                <p>Status: <span id="tooltipStatus" class="font-semibold">ACTIVE</span></p>
+                                <p>Simulated ID: <span id="tooltipId" class="text-amber-400">0x00</span></p>
+                                <p>Interface Role: <span id="tooltipRole">ECU Transceiver</span></p>
+                                <p>Tx packets: <span id="tooltipTx">0</span></p>
+                                <p class="text-slate-400 italic mt-1 border-t border-slate-800/60 pt-1"
+                                    id="tooltipDesc"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Panel 2: Interactive Controls & Configuration Center -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                    <!-- Sub-Panel: Transmission & Vehicle Config -->
+                    <div
+                        class="bg-white dark:bg-[#111827]/90 border border-slate-200 dark:border-slate-800/90 rounded-2xl p-5 shadow-sm space-y-4">
+                        <div class="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800/60">
+                            <i data-lucide="cpu" class="h-4.5 w-4.5 text-indigo-500"></i>
+                            <h3
+                                class="text-xs font-bold uppercase tracking-wider font-mono text-slate-700 dark:text-slate-300">
+                                Transmission Engine</h3>
+                        </div>
+
+                        <!-- Vehicle Profile Dropdown -->
+                        <div class="space-y-1.5">
+                            <label
+                                class="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-wider">Select
+                                Vehicle Profile</label>
+                            <select id="vehicleProfileSelect" onchange="changeProfile(this.value)"
+                                class="w-full bg-slate-100 dark:bg-slate-800/80 text-xs font-mono rounded-lg border border-slate-200 dark:border-slate-700 p-2.5 focus:ring-1 focus:ring-indigo-500 focus:outline-none">
+                                <option value="0">TATA NEXON EV (Active.EV Arc)</option>
+                                <option value="1">ACTIV.EV SMART CITY CAR</option>
+                                <option value="2">LAND ROVER DEFENDER (D7x Platform)</option>
+                                <option value="3">HARRIER DARK EDITION (OmegaArc)</option>
+                            </select>
+                        </div>
+
+                        <!-- Play / Pause Bus simulation -->
+                        <div class="flex gap-3 pt-1">
+                            <button id="playPauseBtn" onclick="togglePlayPause()"
+                                class="flex-1 py-2.5 rounded-lg text-xs font-bold font-mono flex items-center justify-center gap-2 transition-all cursor-pointer bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200">
+                                <i data-lucide="pause" class="h-3.5 w-3.5"></i>
+                                <span id="playPauseText">PAUSE BUS</span>
+                            </button>
+                            <button onclick="clearLogs()"
+                                class="py-2.5 px-4 rounded-lg text-xs font-bold font-mono border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 transition-all cursor-pointer"
+                                title="Reset/Clear Logs">
+                                <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
+                            </button>
+                        </div>
+
+                        <!-- Spark Speed Multiplier -->
+                        <div class="space-y-1.5 pt-1">
+                            <div class="flex justify-between text-[10px] font-mono text-slate-450">
+                                <span>PACKET SPARK SPEED</span>
+                                <span id="speedVal" class="text-slate-700 dark:text-slate-300 font-bold">1.5x</span>
+                            </div>
+                            <input type="range" id="speedSlider" min="0.5" max="5.0" step="0.5" value="1.5"
+                                oninput="changeSpeed(this.value)"
+                                class="w-full accent-indigo-600 dark:accent-emerald-400 bg-slate-200 dark:bg-slate-850 h-1.5 rounded-lg cursor-pointer" />
+                        </div>
+                    </div>
+
+                    <!-- Sub-Panel: Attack Simulator Injection Hub -->
+                    <div
+                        class="bg-white dark:bg-[#111827]/90 border border-slate-200 dark:border-slate-800/90 rounded-2xl p-5 shadow-sm space-y-4">
+                        <div class="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800/60">
+                            <i data-lucide="shield-alert" class="h-4.5 w-4.5 text-rose-500 animate-pulse"></i>
+                            <h3
+                                class="text-xs font-bold uppercase tracking-wider font-mono text-slate-700 dark:text-slate-300">
+                                Intrusion Simulation Injector</h3>
+                        </div>
+
+                        <div class="grid grid-cols-3 gap-2">
+                            <!-- DoS Attack -->
+                            <button id="dosBtn" onclick="triggerAttack('DOS')"
+                                class="py-2 px-1 text-[10px] font-mono font-bold border border-rose-500/30 text-rose-600 dark:text-rose-400 bg-rose-500/5 hover:bg-rose-500/15 rounded-lg transition-all cursor-pointer flex flex-col items-center gap-1 text-center justify-center">
+                                <i data-lucide="zap" class="h-4 w-4"></i>
+                                <span>DENIAL_OF_S</span>
+                            </button>
+
+                            <!-- Fuzzing Attack -->
+                            <button id="fuzzBtn" onclick="triggerAttack('FUZZ')"
+                                class="py-2 px-1 text-[10px] font-mono font-bold border border-purple-500/30 text-purple-600 dark:text-purple-400 bg-purple-500/5 hover:bg-purple-500/15 rounded-lg transition-all cursor-pointer flex flex-col items-center gap-1 text-center justify-center">
+                                <i data-lucide="shuffle" class="h-4 w-4"></i>
+                                <span>FUZZING</span>
+                            </button>
+
+                            <!-- Spoofing Attack -->
+                            <button id="spoofBtn" onclick="triggerAttack('SPOOF')"
+                                class="py-2 px-1 text-[10px] font-mono font-bold border border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/5 hover:bg-amber-500/15 rounded-lg transition-all cursor-pointer flex flex-col items-center gap-1 text-center justify-center">
+                                <i data-lucide="fingerprint" class="h-4 w-4"></i>
+                                <span>SPOOFING</span>
+                            </button>
+                        </div>
+
+                        <div class="pt-1">
+                            <button onclick="triggerAttack('NORMAL')"
+                                class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-mono text-[11px] font-bold rounded-lg cursor-pointer transition-all uppercase tracking-wider flex items-center justify-center gap-2">
+                                <i data-lucide="activity" class="h-3.5 w-3.5"></i>
+                                Stop Intrusion & Arm IDS
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Panel 3: Real-Time Telemetry & IDS Metrics -->
+                <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+
+                    <!-- Telemetry Grid (4 cols) -->
+                    <div class="md:col-span-4 grid grid-cols-2 md:grid-cols-1 gap-4">
+                        <!-- Metric 1: Alerts -->
+                        <div
+                            class="bg-white dark:bg-[#111827]/90 border border-slate-200 dark:border-slate-800/90 rounded-2xl p-4 shadow-sm flex items-center justify-between">
+                            <div>
+                                <span class="text-[9px] font-mono text-slate-450 uppercase tracking-wider block">ALERTS
+                                    RECORDED</span>
+                                <span id="metricAlerts" class="text-2xl font-bold font-mono text-rose-500">0</span>
+                            </div>
+                            <div class="bg-rose-500/10 p-2.5 rounded-xl text-rose-500">
+                                <i data-lucide="alert-octagon" class="h-5 w-5"></i>
+                            </div>
+                        </div>
+
+                        <!-- Metric 2: Bus Load -->
+                        <div
+                            class="bg-white dark:bg-[#111827]/90 border border-slate-200 dark:border-slate-800/90 rounded-2xl p-4 shadow-sm flex items-center justify-between">
+                            <div>
+                                <span class="text-[9px] font-mono text-slate-450 uppercase tracking-wider block">AVERAGE
+                                    BUS LOAD</span>
+                                <span id="metricBusLoad" class="text-2xl font-bold font-mono text-indigo-500">22%</span>
+                            </div>
+                            <div class="bg-indigo-500/10 p-2.5 rounded-xl text-indigo-500">
+                                <i data-lucide="gauge" class="h-5 w-5"></i>
+                            </div>
+                        </div>
+
+                        <!-- Metric 3: Message Speed -->
+                        <div
+                            class="bg-white dark:bg-[#111827]/90 border border-slate-200 dark:border-slate-800/90 rounded-2xl p-4 shadow-sm flex items-center justify-between col-span-2 md:col-span-1">
+                            <div>
+                                <span class="text-[9px] font-mono text-slate-450 uppercase tracking-wider block">PACKET
+                                    FLOW RATE</span>
+                                <span id="metricMsgSpeed" class="text-2xl font-bold font-mono text-emerald-500">12
+                                    msg/s</span>
+                            </div>
+                            <div class="bg-emerald-500/10 p-2.5 rounded-xl text-emerald-500">
+                                <i data-lucide="arrow-up-down" class="h-5 w-5"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Real-Time Metrics Chart (8 cols) -->
+                    <div
+                        class="md:col-span-8 bg-white dark:bg-[#111827]/90 border border-slate-200 dark:border-slate-800/90 rounded-2xl p-5 shadow-sm flex flex-col justify-between">
+                        <div
+                            class="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-slate-800/60 mb-2">
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="line-chart" class="h-4 w-4 text-emerald-500"></i>
+                                <h3
+                                    class="text-xs font-bold uppercase tracking-wider font-mono text-slate-700 dark:text-slate-300">
+                                    Entropy & Bus Load Timeline</h3>
+                            </div>
+                            <span
+                                class="text-[9px] font-mono bg-slate-100 dark:bg-slate-800/80 px-2 py-0.5 rounded text-slate-500 uppercase">Realtime
+                                Telemetry</span>
+                        </div>
+                        <!-- Canvas for custom drawing chart -->
+                        <div
+                            class="flex-1 min-h-[140px] flex items-center justify-center bg-slate-950/20 dark:bg-slate-950/60 rounded-xl overflow-hidden p-1">
+                            <canvas id="metricsChart" class="w-full h-[150px]"></canvas>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Section: Threat Defense Log Feed -->
+                <div
+                    class="bg-white dark:bg-[#111827]/90 border border-slate-200 dark:border-slate-800/90 rounded-2xl shadow-sm flex flex-col">
+                    <div
+                        class="border-b border-slate-200 dark:border-slate-800/80 px-5 py-4 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/30">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="list-collapse" class="h-4.5 w-4.5 text-indigo-500"></i>
+                            <span
+                                class="text-xs font-bold uppercase tracking-wider font-mono text-slate-700 dark:text-slate-300">Intrusion
+                                Alarm System Logger</span>
+                        </div>
+                        <span id="alertsCountBadge"
+                            class="text-[9px] bg-rose-500 text-white font-mono px-2 py-0.5 rounded-full">0 Active
+                            Warnings</span>
+                    </div>
+                    <!-- Logs Table List -->
+                    <div class="max-h-[160px] overflow-y-auto p-3.5 space-y-2 font-mono text-[10px]" id="idsLogFeed">
+                        <div class="text-slate-400 dark:text-slate-500 italic py-2 text-center">IDS initialized.
+                            Monitoring nodes for signals...</div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Column Right: Live Packet Stream Logger (4 Cols) -->
+            <div class="lg:col-span-4 space-y-6">
+
+                <!-- Panel: Hex Frame Console -->
+                <div
+                    class="bg-[#111827] border border-slate-800 rounded-2xl shadow-xl flex flex-col overflow-hidden h-[840px] max-h-[85vh] lg:max-h-[840px]">
+                    <!-- Panel Header -->
+                    <div class="border-b border-slate-800 px-5 py-4 flex justify-between items-center bg-slate-900/60">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="terminal" class="h-4 w-4 text-emerald-400"></i>
+                            <span class="text-xs font-bold uppercase tracking-wider font-mono text-slate-300">Packet
+                                Spark Logger</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+                            <span class="text-[9px] font-mono text-emerald-400 font-bold uppercase">Streaming</span>
+                        </div>
+                    </div>
+
+                    <!-- Console Packet Log Feed -->
+                    <div id="packetStream"
+                        class="flex-1 overflow-y-auto p-4 space-y-2.5 font-mono text-[10px] bg-slate-950/80">
+                        <!-- Packed frame logs will slide in here dynamically -->
+                    </div>
+
+                    <!-- Terminal Status Footer -->
+                    <div
+                        class="border-t border-slate-800 px-5 py-3 flex justify-between items-center bg-slate-900/60 font-mono text-[9px] text-slate-400">
+                        <span>FILTER: ALL_TRAFFIC</span>
+                        <span id="totalPacketsLogged">TX_COUNT: 00000</span>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- Page Footer -->
+        <footer
+            class="flex flex-col sm:flex-row justify-between items-center border-t border-slate-200 dark:border-slate-800/80 pt-4 pb-2 font-mono text-[10px] text-slate-400 dark:text-slate-500 gap-2">
+            <div class="flex flex-wrap gap-x-6 gap-y-1">
+                <div class="flex items-center gap-1.5">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    NODE_ARMED: ENGINE_ECU
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    NODE_ARMED: BATTERY_BMS
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                    NODE_STATUS: CABIN_BCM
+                </div>
+            </div>
+            <div>
+                <span>SECURITY LEVEL: ADVANCED GUARD</span>
+            </div>
+        </footer>
+
+    </div>
+
+    <!-- Simulation Logic & Interactions Script -->
+    <script>
+        // -----------------------------------------------------------------
+        // Vehicle Profile Data (Matches exactly React's metadata configuration)
+        // -----------------------------------------------------------------
+        const CAR_PROFILES = [
+            {
+                name: 'TATA NEXON EV (Active.EV Arc)',
+                nodes: [
+                    { id: 'vcu', label: 'Vehicle Controller (ECU)', xFactor: 0.18, y: -70, color: '#0ea5e9', active: true },
+                    { id: 'bms', label: 'Battery Monitor (ECU)', xFactor: 0.45, y: 70, color: '#14b8a6', active: true },
+                    { id: 'mcu', label: 'Motor Controller (ECU)', xFactor: 0.8, y: -70, color: '#6366f1', active: true },
+                    { id: 'gateway', label: 'Security Gateway (Gateway)', xFactor: 0.5, y: -70, color: '#f43f5e', active: false, highlight: true }
+                ],
+                signals: [
+                    { id: '0x08F', name: 'Ziptron Power Demand', source: 'Vehicle Controller (ECU)', destination: 'Motor Controller (ECU)', desc: 'Accelerator pedal position, dynamic torque requests, dynamic sport drive metrics.' },
+                    { id: '0x135', name: 'High-Voltage Battery SoC', source: 'Battery Monitor (ECU)', destination: 'Security Gateway (Gateway)', desc: 'High-voltage charge index, active thermal coolant flow rate.' },
+                    { id: '0x242', name: 'VCU Drive Selector', source: 'Vehicle Controller (ECU)', destination: 'Battery Monitor (ECU)', desc: 'Electronic shifter positions, safety key telemetry verification hashes.' },
+                    { id: '0x32A', name: 'MCU Thermal Chiller Loop', source: 'Motor Controller (ECU)', destination: 'Battery Monitor (ECU)', desc: 'Rotor temperature signals, electronic water pump RPMs.' }
+                ]
+            },
+            {
+                name: 'ACTIV.EV SMART CITY CAR',
+                nodes: [
+                    { id: 'adas', label: 'Radar Sensor (ECU)', xFactor: 0.18, y: -70, color: '#a855f7', active: true },
+                    { id: 'eps', label: 'Steering Controller (ECU)', xFactor: 0.45, y: 70, color: '#3b82f6', active: true },
+                    { id: 'bms', label: 'Battery Monitor (ECU)', xFactor: 0.8, y: -70, color: '#10b981', active: true },
+                    { id: 'gateway', label: 'Security Gateway (Gateway)', xFactor: 0.5, y: -70, color: '#f43f5e', active: false, highlight: true }
+                ],
+                signals: [
+                    { id: '0x112', name: 'ADAS Target Trajectory', source: 'Radar Sensor (ECU)', destination: 'Steering Controller (ECU)', desc: 'Dynamic distance to road obstacles, hazard classification vectors.' },
+                    { id: '0x1B8', name: 'EPS Torque Assistance', source: 'Steering Controller (ECU)', destination: 'Security Gateway (Gateway)', desc: 'Manual steering wheel yaw torque vectors, active self-steering correction inputs.' },
+                    { id: '0x2A1', name: 'Regenerative Brake Pressure', source: 'Steering Controller (ECU)', destination: 'Battery Monitor (ECU)', desc: 'Regen brake torque capture targets and active friction pad parameters.' },
+                    { id: '0x3C4', name: 'Liquid Pack Cooling Valves', source: 'Battery Monitor (ECU)', destination: 'Security Gateway (Gateway)', desc: 'Auxiliary coolant valve pressure rates, liquid module cell temperature.' }
+                ]
+            },
+            {
+                name: 'LAND ROVER DEFENDER (D7x Platform)',
+                nodes: [
+                    { id: 'aj133', label: 'Engine Controller (ECU)', xFactor: 0.18, y: -70, color: '#f43f5e', active: true },
+                    { id: 'susp', label: 'Suspension Controller (ECU)', xFactor: 0.45, y: 70, color: '#a855f7', active: true },
+                    { id: 'tr2', label: 'Terrain Controller (ECU)', xFactor: 0.8, y: -70, color: '#ec4899', active: true },
+                    { id: 'gateway', label: 'Security Gateway (Gateway)', xFactor: 0.5, y: -70, color: '#10b981', active: false, highlight: true }
+                ],
+                signals: [
+                    { id: '0x098', name: 'Engine RPM & Ignition', source: 'Engine Controller (ECU)', destination: 'Terrain Controller (ECU)', desc: 'Combustion manifold temperature metrics, high-output torque values.' },
+                    { id: '0x102', name: 'Chassis Air Strut Damper', source: 'Suspension Controller (ECU)', destination: 'Security Gateway (Gateway)', desc: 'Active dynamic air pressure levels, terrain height compensation coefficients.' },
+                    { id: '0x150', name: 'Terrain Response Modes', source: 'Terrain Controller (ECU)', destination: 'Engine Controller (ECU)', desc: 'Mud / sand / rock slippage coefficients, transfer box lock status.' },
+                    { id: '0x301', name: 'Active Sway-Bar Stabilizer', source: 'Terrain Controller (ECU)', destination: 'Suspension Controller (ECU)', desc: 'Roll angle calculations, hydraulic system pressure configurations.' }
+                ]
+            },
+            {
+                name: 'HARRIER DARK EDITION (OmegaArc)',
+                nodes: [
+                    { id: 'kryotec', label: 'Engine Controller (ECU)', xFactor: 0.18, y: -70, color: '#eab308', active: true },
+                    { id: 'esp', label: 'Stability Controller (ECU)', xFactor: 0.45, y: 70, color: '#f97316', active: true },
+                    { id: 'bcm', label: 'Cabin Controller (ECU)', xFactor: 0.8, y: -70, color: '#6366f1', active: true },
+                    { id: 'gateway', label: 'Security Gateway (Gateway)', xFactor: 0.5, y: -70, color: '#f43f5e', active: false, highlight: true }
+                ],
+                signals: [
+                    { id: '0x1A8', name: 'Kryotec Throttle Signals', source: 'Engine Controller (ECU)', destination: 'Stability Controller (ECU)', desc: 'Turbocharger pressure metrics, exhaust valve parameters.' },
+                    { id: '0x2F5', name: 'Terrain Response Selector', source: 'Stability Controller (ECU)', destination: 'Security Gateway (Gateway)', desc: 'Dynamic dial states, brake vector friction multiplier metrics.' },
+                    { id: '0x3F8', name: 'Harrier ESP Active Slip', source: 'Stability Controller (ECU)', destination: 'Engine Controller (ECU)', desc: 'Wheel speed differential parameters, traction mitigation requests.' },
+                    { id: '0x4EE', name: 'Dark Comfort Red Ambient', source: 'Cabin Controller (ECU)', destination: 'Security Gateway (Gateway)', desc: 'Chassis dome illumination levels, animated sweeping indicators.' }
+                ]
+            }
+        ];
+
+        // -----------------------------------------------------------------
+        // Simulation Global State Configuration
+        // -----------------------------------------------------------------
+        let isPlaying = true;
+        let currentMode = 'NORMAL'; // 'NORMAL' | 'DOS' | 'FUZZ' | 'SPOOF'
+        let packetSpeedMultiplier = 1.5;
+        let selectedProfileIndex = 0;
+        let isDark = true;
+
+        let totalPacketsLogged = 0;
+        let alertsCount = 0;
+
+        // Lists for packets, alerts, chart history
+        let packetsList = [];
+        let alertsList = [];
+        let chartHistory = Array(40).fill().map(() => ({ busLoad: 20, entropy: 1.8 }));
+
+        // Animated packets on the canvas bus
+        let canvasPackets = [];
+
+        // Canvas refs
+        const canvas = document.getElementById('topologyCanvas');
+        const ctx = canvas.getContext('2d');
+        const metricsCanvas = document.getElementById('metricsChart');
+        const mCtx = metricsCanvas.getContext('2d');
+
+        // -----------------------------------------------------------------
+        // Initialization & Lifecycle Hooks
+        // -----------------------------------------------------------------
+        window.addEventListener('DOMContentLoaded', () => {
+            // Initialize Lucide Icons
+            lucide.createIcons();
+
+            // Setup HTML Canvas sizing
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+
+            // Attach hover listener on topology canvas
+            canvas.addEventListener('mousemove', handleCanvasMouseMove);
+            canvas.addEventListener('click', handleCanvasClick);
+
+            // Start Background Frame Emitters
+            startSimulationEmitters();
+
+            // Start Animation Loop
+            requestAnimationFrame(animationLoop);
+        });
+
+        function resizeCanvas() {
+            // High-DPI canvas fix
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * window.devicePixelRatio;
+            canvas.height = rect.height * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+            const mRect = metricsCanvas.getBoundingClientRect();
+            metricsCanvas.width = mRect.width * window.devicePixelRatio;
+            metricsCanvas.height = mRect.height * window.devicePixelRatio;
+            mCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+
+        // -----------------------------------------------------------------
+        // Theme Switcher Handler
+        // -----------------------------------------------------------------
+        function toggleTheme() {
+            isDark = !isDark;
+            const html = document.documentElement;
+            const icon = document.getElementById('theme-icon');
+
+            if (isDark) {
+                html.classList.add('dark');
+                icon.setAttribute('data-lucide', 'sun');
+            } else {
+                html.classList.remove('dark');
+                icon.setAttribute('data-lucide', 'moon');
+            }
+            lucide.createIcons();
+        }
+
+        // -----------------------------------------------------------------
+        // Interactive Controllers Hooks
+        // -----------------------------------------------------------------
+        function togglePlayPause() {
+            isPlaying = !isPlaying;
+            const btn = document.getElementById('playPauseBtn');
+            const text = document.getElementById('playPauseText');
+
+            if (isPlaying) {
+                text.innerText = 'PAUSE BUS';
+                btn.className = "flex-1 py-2.5 rounded-lg text-xs font-bold font-mono flex items-center justify-center gap-2 transition-all cursor-pointer bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200";
+                btn.querySelector('i').setAttribute('data-lucide', 'pause');
+            } else {
+                text.innerText = 'RESUME BUS';
+                btn.className = "flex-1 py-2.5 rounded-lg text-xs font-bold font-mono flex items-center justify-center gap-2 transition-all cursor-pointer bg-emerald-600 hover:bg-emerald-500 text-white animate-pulse";
+                btn.querySelector('i').setAttribute('data-lucide', 'play');
+            }
+            lucide.createIcons();
+        }
+
+        function changeProfile(val) {
+            selectedProfileIndex = parseInt(val);
+            canvasPackets = [];
+            addSystemLog(`PROFILE_CHANGED: Configured node parameters to profile [${CAR_PROFILES[selectedProfileIndex].name}]`, 'info');
+            triggerAttack('NORMAL'); // Reset to Normal on profile change
+        }
+
+        function changeSpeed(val) {
+            packetSpeedMultiplier = parseFloat(val);
+            document.getElementById('speedVal').innerText = packetSpeedMultiplier.toFixed(1) + 'x';
+        }
+
+        function clearLogs() {
+            packetsList = [];
+            alertsList = [];
+            alertsCount = 0;
+            totalPacketsLogged = 0;
+
+            document.getElementById('packetStream').innerHTML = '';
+            document.getElementById('idsLogFeed').innerHTML = '<div class="text-slate-400 dark:text-slate-500 italic py-2 text-center">Logs reset by user. Monitoring nodes...</div>';
+            document.getElementById('metricAlerts').innerText = '0';
+            document.getElementById('totalPacketsLogged').innerText = 'TX_COUNT: 00000';
+            document.getElementById('alertsCountBadge').innerText = '0 Active Warnings';
+
+            addSystemLog('ID_SYS_LOG: Local threat index and logs cleared successfully', 'info');
+        }
+
+        // -----------------------------------------------------------------
+        // Intrusion Injection Machine & Threat Rules Engine
+        // -----------------------------------------------------------------
+        function triggerAttack(type) {
+            currentMode = type;
+
+            // Update Simulator buttons state styling
+            const dosBtn = document.getElementById('dosBtn');
+            const fuzzBtn = document.getElementById('fuzzBtn');
+            const spoofBtn = document.getElementById('spoofBtn');
+            const sysStatus = document.getElementById('system-status');
+            const sysIndicator = document.getElementById('system-indicator');
+            const sysGlow = document.getElementById('system-glow');
+
+            // Clear selections
+            dosBtn.className = "py-2 px-1 text-[10px] font-mono font-bold border border-rose-500/30 text-rose-600 dark:text-rose-400 bg-rose-500/5 hover:bg-rose-500/15 rounded-lg transition-all cursor-pointer flex flex-col items-center gap-1 text-center justify-center";
+            fuzzBtn.className = "py-2 px-1 text-[10px] font-mono font-bold border border-purple-500/30 text-purple-600 dark:text-purple-400 bg-purple-500/5 hover:bg-purple-500/15 rounded-lg transition-all cursor-pointer flex flex-col items-center gap-1 text-center justify-center";
+            spoofBtn.className = "py-2 px-1 text-[10px] font-mono font-bold border border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/5 hover:bg-amber-500/15 rounded-lg transition-all cursor-pointer flex flex-col items-center gap-1 text-center justify-center";
+
+            if (type === 'DOS') {
+                dosBtn.className = "py-2 px-1 text-[10px] font-mono font-bold border border-rose-500 text-white bg-rose-600 rounded-lg transition-all cursor-pointer flex flex-col items-center gap-1 text-center justify-center";
+                sysStatus.innerText = "SYS_STATUS: UNDER ATTACK";
+                sysIndicator.className = "relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500";
+                sysGlow.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75";
+                addAlertLog('0x000', 'CRITICAL_DOS', 'Denial of Service flood detected on blocking identifier 0x000 (ECU priority starvation).');
+            } else if (type === 'FUZZ') {
+                fuzzBtn.className = "py-2 px-1 text-[10px] font-mono font-bold border border-purple-500 text-white bg-purple-600 rounded-lg transition-all cursor-pointer flex flex-col items-center gap-1 text-center justify-center";
+                sysStatus.innerText = "SYS_STATUS: CRITICAL ANOMALY";
+                sysIndicator.className = "relative inline-flex rounded-full h-2.5 w-2.5 bg-purple-500";
+                sysGlow.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75";
+                addAlertLog('RAND_ID', 'FUZZ_STORM', 'High entropy fuzzer injecting rapid out-of-order payloads across arbitrary identifiers.');
+            } else if (type === 'SPOOF') {
+                spoofBtn.className = "py-2 px-1 text-[10px] font-mono font-bold border border-amber-500 text-white bg-amber-600 rounded-lg transition-all cursor-pointer flex flex-col items-center gap-1 text-center justify-center";
+                sysStatus.innerText = "SYS_STATUS: COMPROMISED LINK";
+                sysIndicator.className = "relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500";
+                sysGlow.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75";
+                addAlertLog('0x242', 'PAYLOAD_SPOOF', 'Out-of-bounds telemetry spoofing detected (Engine/BMS response mismatch parameters).');
+            } else {
+                sysStatus.innerText = "SYS_STATUS: OPTIMAL";
+                sysIndicator.className = "relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500";
+                sysGlow.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75";
+                addSystemLog('ID_SYS_ARMBAND: Malicious link terminated. All network gateways armed and scanning.', 'info');
+            }
+        }
+
+        // -----------------------------------------------------------------
+        // Packet Emitter Engine
+        // -----------------------------------------------------------------
+        function startSimulationEmitters() {
+            // Normal continuous traffic
+            setInterval(() => {
+                if (!isPlaying) return;
+
+                const profile = CAR_PROFILES[selectedProfileIndex];
+
+                // Pick random signal configured in profile to emit
+                const signal = profile.signals[Math.floor(Math.random() * profile.signals.length)];
+
+                // Spawn standard packet
+                emitPacket({
+                    id: signal.id,
+                    name: signal.name,
+                    dlc: 8,
+                    payload: generateRandomHexPayload(8, false),
+                    source: signal.source,
+                    destination: signal.destination,
+                    status: 'SECURE'
+                });
+            }, 750);
+
+            // Rapid Background Injector for active attack patterns
+            setInterval(() => {
+                if (!isPlaying || currentMode === 'NORMAL') return;
+
+                const profile = CAR_PROFILES[selectedProfileIndex];
+                const gatewayNode = profile.nodes.find(n => n.id === 'gateway');
+                const otherNodes = profile.nodes.filter(n => n.id !== 'gateway');
+
+                if (currentMode === 'DOS') {
+                    // DoS attack: Flood with 0x000 frames from security gateway
+                    emitPacket({
+                        id: '0x000',
+                        name: 'GATEWAY_DOS_FLOOD',
+                        dlc: 8,
+                        payload: '00 00 00 00 00 00 00 00',
+                        source: 'Security Gateway (Gateway)',
+                        destination: otherNodes[Math.floor(Math.random() * otherNodes.length)].label,
+                        status: 'ATTACK_DOS'
+                    });
+                }
+                else if (currentMode === 'FUZZ') {
+                    // Fuzzing attack: Random high speed packets
+                    const randId = '0x' + Math.floor(Math.random() * 2047).toString(16).toUpperCase().padStart(3, '0');
+                    emitPacket({
+                        id: randId,
+                        name: 'FUZZER_SPARK_FRAME',
+                        dlc: Math.floor(Math.random() * 8) + 1,
+                        payload: generateRandomHexPayload(8, true),
+                        source: otherNodes[Math.floor(Math.random() * otherNodes.length)].label,
+                        destination: 'Security Gateway (Gateway)',
+                        status: 'ATTACK_FUZZ'
+                    });
+                }
+                else if (currentMode === 'SPOOF') {
+                    // Spoofing: Inject out of bounds payloads with existing ID
+                    const targetSignal = profile.signals[Math.floor(Math.random() * profile.signals.length)];
+                    emitPacket({
+                        id: targetSignal.id,
+                        name: `${targetSignal.name} [SPOOFED]`,
+                        dlc: 8,
+                        payload: 'FF FF C2 E1 00 00 A9 8E', // Abnormal payload spoof
+                        source: targetSignal.source,
+                        destination: targetSignal.destination,
+                        status: 'ATTACK_SPOOF'
+                    });
+
+                    if (Math.random() > 0.8) {
+                        addAlertLog(targetSignal.id, 'SPOOF_MISMATCH', `Boundary breach on ${targetSignal.id} - anomalous field payload parameter received.`);
+                    }
+                }
+            }, 100);
+        }
+
+        function generateRandomHexPayload(bytes, randomAll) {
+            const parts = [];
+            for (let i = 0; i < bytes; i++) {
+                if (randomAll) {
+                    parts.push(Math.floor(Math.random() * 256).toString(16).toUpperCase().padStart(2, '0'));
+                } else {
+                    // Give semi-structured data for nice realism
+                    parts.push(i % 3 === 0 ? '44' : Math.floor(Math.random() * 100).toString(16).toUpperCase().padStart(2, '0'));
+                }
+            }
+            return parts.join(' ');
+        }
+
+        function emitPacket(pkt) {
+            totalPacketsLogged++;
+            document.getElementById('totalPacketsLogged').innerText = `TX_COUNT: ${String(totalPacketsLogged).padStart(5, '0')}`;
+
+            // Add packet to logging database lists
+            packetsList.unshift(pkt);
+            if (packetsList.length > 50) packetsList.pop();
+
+            // Spawn matching graphic spark particle in simulation canvas
+            const profile = CAR_PROFILES[selectedProfileIndex];
+            const srcNode = profile.nodes.find(n => n.label === pkt.source);
+            const dstNode = profile.nodes.find(n => n.label === pkt.destination);
+
+            if (srcNode && dstNode) {
+                canvasPackets.push({
+                    sourceId: srcNode.id,
+                    destId: dstNode.id,
+                    progress: 0,
+                    color: currentMode === 'NORMAL' ? '#10b981' : pkt.status === 'ATTACK_DOS' ? '#f43f5e' : pkt.status === 'ATTACK_FUZZ' ? '#a855f7' : '#f97316',
+                    speed: 0.02 * packetSpeedMultiplier
+                });
+            }
+
+            // Render to DOM frame console
+            renderPacketToConsole(pkt);
+        }
+
+        function renderPacketToConsole(pkt) {
+            const stream = document.getElementById('packetStream');
+            const row = document.createElement('div');
+
+            let statusColor = 'border-emerald-500/20 bg-emerald-500/5';
+            let tag = '<span class="text-emerald-400 font-bold">✓ SECURE</span>';
+
+            if (pkt.status === 'ATTACK_DOS') {
+                statusColor = 'border-rose-500 bg-rose-500/10 text-rose-300';
+                tag = '<span class="text-rose-400 font-bold animate-pulse">⚠️ REJECTED_DOS</span>';
+            } else if (pkt.status === 'ATTACK_FUZZ') {
+                statusColor = 'border-purple-500 bg-purple-500/10 text-purple-300';
+                tag = '<span class="text-purple-400 font-bold">⚠️ REJECTED_FUZZ</span>';
+            } else if (pkt.status === 'ATTACK_SPOOF') {
+                statusColor = 'border-amber-500 bg-amber-500/10 text-amber-300';
+                tag = '<span class="text-amber-400 font-bold">⚠️ BLOCKED_SPOOF</span>';
+            }
+
+            const timeOffset = ((performance.now() % 100000) / 1000).toFixed(3);
+
+            row.className = `p-3.5 border rounded-xl flex flex-col gap-2.5 transition-all hover:scale-[1.01] ${statusColor}`;
+            row.innerHTML = `
+        <div class="flex justify-between items-center text-[10px] pb-1.5 border-b border-slate-800/50">
+          <div class="flex items-center gap-2">
+            <span class="bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded text-[8px] font-bold">+${timeOffset}s</span>
+            <span class="text-white font-bold tracking-wider">${pkt.id}</span>
+            <span class="text-slate-400 text-[9px] font-semibold">DLC:${pkt.dlc}</span>
+          </div>
+          <div>${tag}</div>
+        </div>
+        <div class="flex flex-col gap-1">
+          <div class="text-[11px] font-bold text-slate-300 tracking-wider font-mono">${pkt.payload}</div>
+          <div class="flex items-center justify-between text-[8px] text-slate-450 mt-1">
+            <span>TX: ${pkt.source.split(' ')[0]}</span>
+            <span>→</span>
+            <span>RX: ${pkt.destination.split(' ')[0]}</span>
+          </div>
+        </div>
+      `;
+
+            stream.insertBefore(row, stream.firstChild);
+
+            // Cap visual nodes in container
+            if (stream.children.length > 30) {
+                stream.removeChild(stream.lastChild);
+            }
+        }
+
+        function addAlertLog(id, alertType, message) {
+            alertsCount++;
+            document.getElementById('metricAlerts').innerText = alertsCount;
+            document.getElementById('alertsCountBadge').innerText = `${alertsCount} Active Warnings`;
+
+            const container = document.getElementById('idsLogFeed');
+            const timeOffset = ((performance.now() % 100000) / 1000).toFixed(3);
+            const alertNode = document.createElement('div');
+
+            alertNode.className = "flex items-start gap-3 bg-rose-500/10 border border-rose-500/20 p-3 rounded-xl text-rose-300 hover:scale-[1.005] transition-all";
+            alertNode.innerHTML = `
+        <div class="bg-rose-500/20 p-1.5 rounded text-rose-400 mt-0.5">
+          <i data-lucide="triangle-alert" class="h-4 w-4"></i>
+        </div>
+        <div class="flex-1">
+          <div class="flex justify-between items-center text-[9px] text-rose-400 font-bold">
+            <span>[ALERT :: ${alertType}] ID: ${id}</span>
+            <span>+${timeOffset}s</span>
+          </div>
+          <p class="text-[10px] text-rose-200 mt-1 font-sans">${message}</p>
+        </div>
+      `;
+
+            // Remove the "initialized" helper text on first genuine alert
+            if (container.querySelector('.italic')) {
+                container.innerHTML = '';
+            }
+
+            container.insertBefore(alertNode, container.firstChild);
+            lucide.createIcons();
+        }
+
+        function addSystemLog(msg, type) {
+            const container = document.getElementById('idsLogFeed');
+            const timeOffset = ((performance.now() % 100000) / 1000).toFixed(3);
+            const logNode = document.createElement('div');
+
+            logNode.className = "flex items-start gap-3 bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 p-2.5 rounded-xl text-slate-600 dark:text-slate-300";
+            logNode.innerHTML = `
+        <div class="bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 p-1.5 rounded mt-0.5">
+          <i data-lucide="info" class="h-3.5 w-3.5"></i>
+        </div>
+        <div class="flex-1">
+          <div class="flex justify-between items-center text-[9px] text-slate-400">
+            <span>SYS_INFO</span>
+            <span>+${timeOffset}s</span>
+          </div>
+          <p class="text-[9.5px] mt-0.5">${msg}</p>
+        </div>
+      `;
+
+            if (container.querySelector('.italic')) {
+                container.innerHTML = '';
+            }
+
+            container.insertBefore(logNode, container.firstChild);
+            lucide.createIcons();
+        }
+
+        // -----------------------------------------------------------------
+        // Topology Node Hovers & Clicks Data Binding
+        // -----------------------------------------------------------------
+        let hoveredNode = null;
+
+        function handleCanvasMouseMove(e) {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            const profile = CAR_PROFILES[selectedProfileIndex];
+            const startX = 60;
+            const endX = rect.width - 60;
+            const centerY = rect.height / 2;
+
+            let found = null;
+            profile.nodes.forEach(node => {
+                const nx = startX + (endX - startX) * node.xFactor;
+                const ny = centerY + node.y;
+
+                ctx.font = 'bold 8.5px "Inter", sans-serif';
+                const labelWidth = ctx.measureText(node.label).width;
+                const boxWidth = Math.max(115, Math.ceil(labelWidth) + 20);
+                const boxHeight = 38;
+
+                if (
+                    mouseX >= nx - boxWidth / 2 &&
+                    mouseX <= nx + boxWidth / 2 &&
+                    mouseY >= ny - boxHeight / 2 &&
+                    mouseY <= ny + boxHeight / 2
+                ) {
+                    found = node;
+                }
+            });
+
+            if (found) {
+                hoveredNode = found;
+                canvas.style.cursor = 'pointer';
+
+                // Show Tooltip
+                const tooltip = document.getElementById('nodeTooltip');
+                tooltip.style.left = `${e.clientX - rect.left + 15}px`;
+                tooltip.style.top = `${e.clientY - rect.top + 15}px`;
+                tooltip.classList.remove('hidden');
+
+                document.getElementById('tooltipTitle').innerText = found.label;
+                document.getElementById('tooltipStatus').innerText = found.active || found.id === 'gateway' ? 'ACTIVE' : 'STANDBY';
+                document.getElementById('tooltipId').innerText = found.id === 'gateway' ? 'GATEWAY (FIREWALL)' : 'ECU_NODE_ARMED';
+                document.getElementById('tooltipRole').innerText = found.id === 'gateway' ? 'Intrusion Detection Gateway' : 'Automotive Transceiver (ECU)';
+                document.getElementById('tooltipDesc').innerText = getCustomNodeDescription(found.id);
+            } else {
+                hoveredNode = null;
+                canvas.style.cursor = 'default';
+                document.getElementById('nodeTooltip').classList.add('hidden');
+            }
+        }
+
+        function handleCanvasClick(e) {
+            if (hoveredNode) {
+                addSystemLog(`NODE_QUERY: Node [${hoveredNode.label}] query received. Connection Integrity: 100%`, 'info');
+            }
+        }
+
+        function getCustomNodeDescription(id) {
+            switch (id) {
+                case 'vcu': return 'Handles vehicle level throttle demand, battery control states, and gear shifter validation hashes.';
+                case 'bms': return 'Controls and measures battery thermal cooling loops, cell balancing registers, and safety isolator pins.';
+                case 'mcu': return 'Calculates motor torque requirements, speed loops, and regenerative brake captures.';
+                case 'gateway': return 'Central Security Firewall gateway routing and filtering frame protocols to prevent malicious message injection.';
+                case 'adas': return 'Monitors Indian road obstacles including two-wheelers, pedestrians, and immediate road hazards.';
+                case 'eps': return 'Controls active hydraulic power steering and assistance torque indexes.';
+                case 'aj133': return 'Engine dynamic spark, intake metrics, supercharger safety overrides.';
+                case 'susp': return 'Air suspension levelers and active shock dampening telemetry controllers.';
+                case 'tr2': return 'Processes terrain friction slips and active differential lockers.';
+                case 'kryotec': return 'Handles variable turbocharging loops and dynamic exhaust gas calculations.';
+                case 'esp': return 'Electronic stability control and anti-lock brake actuators.';
+                case 'bcm': return 'Body control cabin electronics including lighting loops and Sweeping signals.';
+                default: return 'Automotive ECU Controller';
+            }
+        }
+
+        // -----------------------------------------------------------------
+        // High Performance Rendering Loop
+        // -----------------------------------------------------------------
+        function animationLoop() {
+            // 1. Draw Topology Bus Map
+            drawTopology();
+
+            // 2. Refresh Metrics Telemetry Tele-logs
+            updateTelemetryNumbers();
+
+            // 3. Draw Real-time Canvas Graph
+            drawTelemetryChart();
+
+            requestAnimationFrame(animationLoop);
+        }
+
+        function drawTopology() {
+            const rect = canvas.getBoundingClientRect();
+            ctx.clearRect(0, 0, rect.width, rect.height);
+
+            const startX = 60;
+            const endX = rect.width - 60;
+            const centerY = rect.height / 2;
+
+            // Draw Differential Bus Wires (CAN-High and CAN-Low)
+            ctx.save();
+            ctx.lineWidth = 2.5;
+
+            // CAN-H (Green)
+            ctx.strokeStyle = isDark ? '#10B981' : '#059669';
+            ctx.beginPath();
+            ctx.moveTo(startX, centerY - 4);
+            ctx.lineTo(endX, centerY - 4);
+            ctx.stroke();
+
+            // CAN-L (Blue)
+            ctx.strokeStyle = isDark ? '#3B82F6' : '#2563EB';
+            ctx.beginPath();
+            ctx.moveTo(startX, centerY + 4);
+            ctx.lineTo(endX, centerY + 4);
+            ctx.stroke();
+            ctx.restore();
+
+            // Terminal Resistors (120 Ω)
+            const drawResistor = (rx, label) => {
+                ctx.save();
+                ctx.fillStyle = isDark ? '#1E293B' : '#F8FAFC';
+                ctx.strokeStyle = isDark ? '#475569' : '#CBD5E1';
+                ctx.lineWidth = 1.5;
+
+                ctx.beginPath();
+                ctx.roundRect(rx - 15, centerY - 15, 30, 30, 4);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = isDark ? '#F1F5F9' : '#334155';
+                ctx.font = 'bold 8px "JetBrains Mono", monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText('120 Ω', rx, centerY - 1);
+                ctx.fillStyle = isDark ? '#94A3B8' : '#64748B';
+                ctx.font = '7px sans-serif';
+                ctx.fillText(label, rx, centerY + 8);
+                ctx.restore();
+            };
+
+            drawResistor(startX - 22, 'TERM_L');
+            drawResistor(endX + 22, 'TERM_R');
+
+            // Fetch dynamic profile nodes
+            const profile = CAR_PROFILES[selectedProfileIndex];
+            const nodes = profile.nodes.map(node => ({
+                ...node,
+                x: startX + (endX - startX) * node.xFactor,
+                y: centerY + node.y
+            }));
+
+            // Render Connection Stub wires to backbone
+            nodes.forEach(node => {
+                ctx.save();
+                ctx.strokeStyle = isDark ? 'rgba(148, 163, 184, 0.2)' : 'rgba(71, 85, 105, 0.2)';
+                ctx.lineWidth = 1.2;
+                ctx.setLineDash([3, 3]);
+                ctx.beginPath();
+                ctx.moveTo(node.x, node.y);
+                ctx.lineTo(node.x, centerY);
+                ctx.stroke();
+                ctx.restore();
+
+                // Node Box
+                ctx.save();
+                ctx.font = 'bold 8.5px "Inter", sans-serif';
+                const labelWidth = ctx.measureText(node.label).width;
+                const boxWidth = Math.max(115, Math.ceil(labelWidth) + 20);
+                const boxHeight = 38;
+
+                ctx.fillStyle = isDark ? '#1E293B' : '#FFFFFF';
+
+                // Setup glow styling if highlighted
+                if (node.highlight) {
+                    ctx.strokeStyle = currentMode === 'NORMAL'
+                        ? '#10b981'
+                        : currentMode === 'DOS'
+                            ? '#ef4444'
+                            : currentMode === 'SPOOF'
+                                ? '#f59e0b'
+                                : '#8b5cf6';
+                    ctx.lineWidth = 2.2;
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = ctx.strokeStyle;
+                } else {
+                    ctx.strokeStyle = isDark ? '#334155' : '#E2E8F0';
+                    ctx.lineWidth = 1;
+                }
+
+                ctx.beginPath();
+                ctx.roundRect(node.x - boxWidth / 2, node.y - boxHeight / 2, boxWidth, boxHeight, 8);
+                ctx.fill();
+                ctx.stroke();
+                ctx.shadowBlur = 0; // Reset shadow
+
+                // Inner Text Content
+                // Status dot
+                ctx.beginPath();
+                ctx.arc(node.x - boxWidth / 2 + 14, node.y - 10, 3, 0, Math.PI * 2);
+                ctx.fillStyle = node.highlight
+                    ? (currentMode === 'NORMAL' ? '#10b981' : '#f43f5e')
+                    : node.color;
+                ctx.fill();
+
+                // Node category tag
+                ctx.fillStyle = isDark ? '#94A3B8' : '#64748B';
+                ctx.font = 'bold 7.5px "JetBrains Mono", monospace';
+                ctx.textAlign = 'left';
+                ctx.fillText(node.id === 'gateway' ? 'GATEWAY' : 'ECU_NODE', node.x - boxWidth / 2 + 22, node.y - 8);
+
+                // Core dynamic text node label
+                ctx.fillStyle = isDark ? '#F1F5F9' : '#1E293B';
+                ctx.font = 'bold 8.5px "Inter", sans-serif';
+                ctx.fillText(node.label, node.x - boxWidth / 2 + 12, node.y + 4);
+
+                // Subtext Telemetry
+                ctx.fillStyle = node.highlight && currentMode !== 'NORMAL' ? '#f87171' : '#10b981';
+                ctx.font = 'bold 7px "JetBrains Mono", monospace';
+                ctx.fillText(node.highlight ? `IDS: ${currentMode === 'NORMAL' ? 'ARMED' : currentMode}` : 'SECURE', node.x - boxWidth / 2 + 12, node.y + 13);
+
+                ctx.restore();
+            });
+
+            // Render Packet spark flow indicators
+            if (isPlaying) {
+                canvasPackets.forEach((pkt, index) => {
+                    pkt.progress += pkt.speed;
+
+                    // Compute exact x/y positions on wire
+                    const src = nodes.find(n => n.id === pkt.sourceId);
+                    const dst = nodes.find(n => n.id === pkt.destId);
+
+                    if (src && dst) {
+                        let px, py;
+
+                        // Phase 1: From Source down to backbone
+                        if (pkt.progress < 0.3) {
+                            const subProg = pkt.progress / 0.3;
+                            px = src.x;
+                            py = src.y + (centerY - src.y) * subProg;
+                        }
+                        // Phase 2: Along the CAN Bus wires
+                        else if (pkt.progress < 0.7) {
+                            const subProg = (pkt.progress - 0.3) / 0.4;
+                            px = src.x + (dst.x - src.x) * subProg;
+                            py = centerY;
+                        }
+                        // Phase 3: Up to destination stub node
+                        else if (pkt.progress < 1.0) {
+                            const subProg = (pkt.progress - 0.7) / 0.3;
+                            px = dst.x;
+                            py = centerY + (dst.y - centerY) * subProg;
+                        }
+
+                        // Draw spark particle glowing circles
+                        ctx.save();
+                        ctx.beginPath();
+                        ctx.arc(px, py, 4.5, 0, Math.PI * 2);
+                        ctx.fillStyle = pkt.color;
+                        ctx.shadowBlur = 8;
+                        ctx.shadowColor = pkt.color;
+                        ctx.fill();
+                        ctx.restore();
+                    }
+
+                    // Cull expired spark particles
+                    if (pkt.progress >= 1.0) {
+                        canvasPackets.splice(index, 1);
+                    }
+                });
+            }
+        }
+
+        // -----------------------------------------------------------------
+        // Live Telemetry & Graph Rendering
+        // -----------------------------------------------------------------
+        let tickCount = 0;
+
+        function updateTelemetryNumbers() {
+            if (!isPlaying) return;
+
+            tickCount++;
+            if (tickCount % 30 !== 0) return; // Limit telemetry calculation cycles
+
+            // Compute dynamic variables based on injection modes
+            let targetBusLoad = 20;
+            let targetEntropy = 1.8;
+            let targetSpeed = 12;
+
+            if (currentMode === 'DOS') {
+                targetBusLoad = Math.floor(88 + Math.random() * 8);
+                targetEntropy = parseFloat((0.4 + Math.random() * 0.3).toFixed(2));
+                targetSpeed = Math.floor(180 + Math.random() * 20);
+            } else if (currentMode === 'FUZZ') {
+                targetBusLoad = Math.floor(65 + Math.random() * 10);
+                targetEntropy = parseFloat((4.8 + Math.random() * 0.6).toFixed(2));
+                targetSpeed = Math.floor(110 + Math.random() * 30);
+            } else if (currentMode === 'SPOOF') {
+                targetBusLoad = Math.floor(25 + Math.random() * 6);
+                targetEntropy = parseFloat((2.5 + Math.random() * 0.5).toFixed(2));
+                targetSpeed = Math.floor(16 + Math.random() * 6);
+            } else {
+                // Normal state fluctuations
+                targetBusLoad = Math.floor(18 + Math.sin(Date.now() / 3000) * 4 + Math.random() * 2);
+                targetEntropy = parseFloat((1.7 + Math.random() * 0.2).toFixed(2));
+                targetSpeed = Math.floor(11 + Math.random() * 3);
+            }
+
+            // Update DOM cards
+            document.getElementById('metricBusLoad').innerText = targetBusLoad + '%';
+            document.getElementById('metricMsgSpeed').innerText = targetSpeed + ' msg/s';
+
+            // Capture history metrics
+            chartHistory.push({ busLoad: targetBusLoad, entropy: targetEntropy });
+            if (chartHistory.length > 50) chartHistory.shift();
+        }
+
+        function drawTelemetryChart() {
+            const rect = metricsCanvas.getBoundingClientRect();
+            mCtx.clearRect(0, 0, rect.width, rect.height);
+
+            const width = rect.width;
+            const height = rect.height;
+            const padding = 15;
+
+            // Draw Grid helper lines
+            mCtx.save();
+            mCtx.strokeStyle = isDark ? 'rgba(148, 163, 184, 0.08)' : 'rgba(71, 85, 105, 0.06)';
+            mCtx.lineWidth = 1;
+            for (let i = 1; i <= 3; i++) {
+                const y = padding + (height - 2 * padding) * (i / 4);
+                mCtx.beginPath();
+                mCtx.moveTo(padding, y);
+                mCtx.lineTo(width - padding, y);
+                mCtx.stroke();
+            }
+            mCtx.restore();
+
+            // Render line 1: Bus Load (Fill area chart)
+            mCtx.save();
+            mCtx.beginPath();
+
+            const step = (width - 2 * padding) / (chartHistory.length - 1);
+            chartHistory.forEach((point, idx) => {
+                const x = padding + idx * step;
+                // Map 0-100% to canvas height limits
+                const y = height - padding - ((point.busLoad / 100) * (height - 2 * padding));
+
+                if (idx === 0) mCtx.moveTo(x, y);
+                else mCtx.lineTo(x, y);
+            });
+
+            // Close polygon to fill background path
+            mCtx.lineTo(padding + (chartHistory.length - 1) * step, height - padding);
+            mCtx.lineTo(padding, height - padding);
+            mCtx.closePath();
+
+            mCtx.fillStyle = isDark ? 'rgba(99, 102, 241, 0.08)' : 'rgba(99, 102, 241, 0.1)';
+            mCtx.fill();
+
+            // Draw outline path
+            mCtx.beginPath();
+            chartHistory.forEach((point, idx) => {
+                const x = padding + idx * step;
+                const y = height - padding - ((point.busLoad / 100) * (height - 2 * padding));
+                if (idx === 0) mCtx.moveTo(x, y);
+                else mCtx.lineTo(x, y);
+            });
+            mCtx.strokeStyle = '#6366f1';
+            mCtx.lineWidth = 1.8;
+            mCtx.stroke();
+            mCtx.restore();
+
+            // Render line 2: Entropy level (Simple line plot)
+            mCtx.save();
+            mCtx.beginPath();
+            chartHistory.forEach((point, idx) => {
+                const x = padding + idx * step;
+                // Map 0-6 entropy value
+                const y = height - padding - ((point.entropy / 6) * (height - 2 * padding));
+                if (idx === 0) mCtx.moveTo(x, y);
+                else mCtx.lineTo(x, y);
+            });
+            mCtx.strokeStyle = '#10b981';
+            mCtx.lineWidth = 1.5;
+            mCtx.setLineDash([2, 2]);
+            mCtx.stroke();
+            mCtx.restore();
+        }
+    </script>
+</body>
+
+</html>

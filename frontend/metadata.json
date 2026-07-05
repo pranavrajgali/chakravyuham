@@ -1,0 +1,6 @@
+{
+  "name": "Chakravyuham",
+  "description": "Protocol-Agnostic Gateway IDS and Live CAN Bus Network Monitor.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

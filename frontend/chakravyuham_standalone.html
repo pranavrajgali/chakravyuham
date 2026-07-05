@@ -1,0 +1,1784 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chakravyuham - Standalone Protocol Gateway IDS & CAN Bus Monitor</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Tailwind Config for exact React App styling alignment -->
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', '-apple-system', 'sans-serif'],
+            display: ['Plus Jakarta Sans', 'Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'Fira Code', 'monospace']
+          },
+          colors: {
+            // Match the exact high-fidelity React theme custom hex codes
+            bentoBg: {
+              light: '#F1F5F9',
+              dark: '#030712' // High-depth ink black
+            },
+            bentoCard: {
+              light: '#FFFFFF',
+              dark: '#0B0F19' // Deep carbon slate
+            },
+            bentoBorder: {
+              light: '#CBD5E1',
+              dark: '#334155' // Crisp boundaries
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    /* Global scrollbar styling */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #475569;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #64748b;
+    }
+    
+    /* High contrast custom variables to support custom overlays */
+    :root {
+      --bg-color: #F1F5F9;
+      --card-bg: #FFFFFF;
+      --border-color: #CBD5E1;
+    }
+    :root.dark {
+      --bg-color: #030712;
+      --card-bg: #0B0F19;
+      --border-color: #334155;
+      color-scheme: dark;
+    }
+
+    /* Override dynamic background colors exactly like our React stylesheet */
+    .theme-transition {
+      transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+    }
+    
+    body {
+      background-color: var(--bg-color);
+    }
+    
+    .bento-card {
+      background-color: var(--card-bg);
+      border-color: var(--border-color);
+    }
+  </style>
+</head>
+<body class="text-slate-800 dark:text-slate-100 min-h-screen font-sans theme-transition p-4 md:p-6 select-none">
+
+  <!-- Wrapper Grid -->
+  <div class="max-w-[1600px] mx-auto space-y-6">
+
+    <!-- Top Navigation Header -->
+    <header class="bento-card border flex flex-col md:flex-row justify-between items-start md:items-center p-5 rounded-2xl shadow-sm gap-4 theme-transition">
+      <div class="flex items-center gap-4">
+        <!-- Brand Icon -->
+        <div class="bg-indigo-600/10 dark:bg-emerald-500/10 p-3 rounded-xl border border-indigo-500/20 dark:border-emerald-500/20 text-indigo-600 dark:text-emerald-400">
+          <i data-lucide="shield-check" class="h-8 w-8"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <h1 class="text-2xl md:text-3xl font-medium tracking-[0.2em] text-slate-800 dark:text-slate-100 uppercase font-mono">
+              Chakravyuham
+            </h1>
+            <span class="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] uppercase font-mono font-bold px-2 py-0.5 rounded border border-emerald-500/20">
+              V2.5.0-HighFidelity
+            </span>
+          </div>
+          <p class="text-[10px] md:text-xs text-slate-500 dark:text-slate-400 mt-1 uppercase tracking-wider font-mono">
+            Protocol-Agnostic Gateway IDS & Live CAN Bus Network Monitor
+          </p>
+        </div>
+      </div>
+
+      <!-- Quick Telemetry & Controls -->
+      <div class="flex items-center gap-3 flex-wrap w-full md:w-auto justify-end">
+        <!-- Live System Status Badge -->
+        <div id="statusBadge" class="flex items-center gap-2 bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-500/10 dark:border-emerald-500/20 dark:text-emerald-400 px-3.5 py-1.5 rounded-lg border text-xs font-mono font-semibold transition-all duration-300">
+          <span class="relative flex h-2.5 w-2.5">
+            <span id="system-glow" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span id="system-indicator" class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+          </span>
+          <span id="system-status" class="tracking-wider">SYSTEM SECURE</span>
+        </div>
+
+        <!-- Synth Audio Alarm Toggle (Matched with React Sound effects) -->
+        <button id="audioToggleBtn" onclick="toggleMute()" class="bento-card border hover:bg-slate-100 dark:hover:bg-slate-800 p-2.5 rounded-xl cursor-pointer transition-all flex items-center justify-center text-slate-500 dark:text-slate-300" title="Toggle Sound Engine">
+          <i id="audio-icon" data-lucide="volume-2" class="h-4.5 w-4.5"></i>
+        </button>
+
+        <!-- Theme Toggle Button -->
+        <button onclick="toggleTheme()" class="bento-card border hover:bg-slate-100 dark:hover:bg-slate-800 p-2.5 rounded-xl cursor-pointer transition-all flex items-center justify-center text-slate-500 dark:text-slate-300" title="Toggle Theme">
+          <i id="theme-icon" data-lucide="sun" class="h-4.5 w-4.5 text-amber-500 dark:text-slate-300"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content Layout -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+      <!-- Column Left: Simulation Topology & Security Centers (8 Cols) -->
+      <div class="lg:col-span-8 space-y-6">
+
+        <!-- Panel 1: Live CAN Bus Topology Canvas -->
+        <div class="bento-card border rounded-2xl shadow-sm overflow-hidden flex flex-col theme-transition">
+          <div class="border-b border-slate-200 dark:border-slate-800/80 px-5 py-4 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/30">
+            <div class="flex items-center gap-2 select-none">
+              <span class="h-1.5 w-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
+              <span class="text-xs font-bold uppercase tracking-wider font-mono text-slate-700 dark:text-slate-300">Live CAN Bus Pipeline</span>
+            </div>
+            <div class="flex items-center gap-3 text-[10px] font-mono text-slate-450 dark:text-slate-400">
+              <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> CAN-High</span>
+              <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-500"></span> CAN-Low</span>
+            </div>
+          </div>
+          
+          <!-- Topology Render Window (Uses 800x260 logical scale and fixes overlap) -->
+          <div class="relative bg-white dark:bg-[#0B0F19] p-0.5 flex items-center justify-center h-[260px] w-full border-t border-slate-100 dark:border-slate-900">
+            <canvas id="topologyCanvas" class="w-full h-full cursor-crosshair"></canvas>
+            
+            <div class="absolute left-4 top-4 pointer-events-none select-none">
+              <p class="text-[8px] font-mono text-slate-450 uppercase">Input Terminal</p>
+              <p class="text-[10px] font-semibold text-slate-500 font-display">ECU Sender Bus</p>
+            </div>
+            <div class="absolute right-4 top-4 pointer-events-none select-none text-right">
+              <p class="text-[8px] font-mono text-slate-450 uppercase">Receiving Bus</p>
+              <p class="text-[10px] font-semibold text-slate-500 font-display">IDS Security Gateway</p>
+            </div>
+
+            <!-- Hover Node Detail Tooltip Overlay -->
+            <div id="nodeTooltip" class="absolute hidden bg-slate-950/95 border border-slate-700 text-white text-xs p-3.5 rounded-xl shadow-xl backdrop-blur-md pointer-events-none w-64 z-50">
+              <h4 id="tooltipTitle" class="font-bold border-b border-slate-700 pb-1 mb-1.5 text-indigo-400 font-mono text-[11px] uppercase tracking-wider">Node Details</h4>
+              <div class="space-y-1 font-mono text-[10px] text-slate-300">
+                <p>Status: <span id="tooltipStatus" class="font-semibold text-emerald-400">ACTIVE</span></p>
+                <p>Simulated ID: <span id="tooltipId" class="text-amber-400">0x00</span></p>
+                <p>Interface Role: <span id="tooltipRole">ECU Transceiver</span></p>
+                <p class="text-slate-400 italic mt-1 border-t border-slate-800/60 pt-1" id="tooltipDesc"></p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel 2: Interactive Controls & Configuration Center -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+          <!-- Sub-Panel: Transmission Engine -->
+          <div class="bento-card border rounded-2xl p-5 shadow-sm space-y-4 theme-transition">
+            <div class="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800/60">
+              <i data-lucide="cpu" class="h-4.5 w-4.5 text-indigo-500"></i>
+              <h3 class="text-xs font-bold uppercase tracking-wider font-mono text-slate-700 dark:text-slate-300">Transmission Engine</h3>
+            </div>
+
+            <!-- Vehicle Profile Dropdown -->
+            <div class="space-y-1.5">
+              <label class="text-[10px] font-mono font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Select Vehicle Profile</label>
+              <select id="vehicleProfileSelect" onchange="changeProfile(this.value)" class="w-full bg-slate-50 dark:bg-slate-900 text-xs font-mono rounded-lg border border-slate-200 dark:border-slate-800 p-2.5 focus:ring-1 focus:ring-indigo-500 focus:outline-none text-slate-700 dark:text-slate-300">
+                <option value="0">TATA NEXON EV (Active.EV Arc)</option>
+                <option value="1">ACTIV.EV SMART CITY CAR</option>
+                <option value="2">LAND ROVER DEFENDER (D7x Platform)</option>
+                <option value="3">HARRIER DARK EDITION (OmegaArc)</option>
+              </select>
+            </div>
+
+            <!-- Play / Pause Bus simulation -->
+            <div class="flex gap-3 pt-1">
+              <button id="playPauseBtn" onclick="togglePlayPause()" class="flex-1 py-2.5 rounded-lg text-xs font-bold font-mono flex items-center justify-center gap-2 transition-all cursor-pointer bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200">
+                <i data-lucide="pause" class="h-3.5 w-3.5"></i>
+                <span id="playPauseText">PAUSE BUS</span>
+              </button>
+              <button onclick="clearLogs()" class="py-2.5 px-4 rounded-lg text-xs font-bold font-mono border border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-750 dark:hover:text-slate-200 transition-all cursor-pointer" title="Reset/Clear Logs">
+                <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
+              </button>
+            </div>
+
+            <!-- Spark Speed Multiplier -->
+            <div class="space-y-1.5 pt-1">
+              <div class="flex justify-between text-[10px] font-mono text-slate-450 dark:text-slate-400">
+                <span>PACKET SPARK SPEED</span>
+                <span id="speedVal" class="text-slate-750 dark:text-slate-300 font-bold">1.0x</span>
+              </div>
+              <input
+                type="range"
+                id="speedSlider"
+                min="0.5"
+                max="3.0"
+                step="0.5"
+                value="1.0"
+                oninput="changeSpeed(this.value)"
+                class="w-full accent-indigo-600 dark:accent-emerald-400 bg-slate-200 dark:bg-slate-800 h-1.5 rounded-lg cursor-pointer"
+              />
+            </div>
+          </div>
+
+          <!-- Sub-Panel: Intrusion Simulator Injection Hub -->
+          <div class="bento-card border rounded-2xl p-5 shadow-sm space-y-4 theme-transition">
+            <div class="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800/60">
+              <i data-lucide="shield-alert" class="h-4.5 w-4.5 text-rose-500"></i>
+              <h3 class="text-xs font-bold uppercase tracking-wider font-mono text-slate-700 dark:text-slate-300">Intrusion Simulation Injector</h3>
+            </div>
+
+            <div class="grid grid-cols-3 gap-2">
+              <!-- DoS Attack -->
+              <button id="dosBtn" onclick="triggerAttack('DOS')" class="py-2.5 px-1 text-[10px] font-mono font-bold border border-rose-500/30 text-rose-600 dark:text-rose-400 bg-rose-500/5 hover:bg-rose-500/15 rounded-lg transition-all cursor-pointer flex flex-col items-center gap-1.5 text-center justify-center">
+                <i data-lucide="zap" class="h-4 w-4"></i>
+                <span>DENIAL_OF_S</span>
+              </button>
+
+              <!-- Fuzzing Attack -->
+              <button id="fuzzBtn" onclick="triggerAttack('FUZZ')" class="py-2.5 px-1 text-[10px] font-mono font-bold border border-purple-500/30 text-purple-600 dark:text-purple-400 bg-purple-500/5 hover:bg-purple-500/15 rounded-lg transition-all cursor-pointer flex flex-col items-center gap-1.5 text-center justify-center">
+                <i data-lucide="shuffle" class="h-4 w-4"></i>
+                <span>FUZZING</span>
+              </button>
+
+              <!-- Spoofing Attack -->
+              <button id="spoofBtn" onclick="triggerAttack('SPOOF')" class="py-2.5 px-1 text-[10px] font-mono font-bold border border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/5 hover:bg-amber-500/15 rounded-lg transition-all cursor-pointer flex flex-col items-center gap-1.5 text-center justify-center">
+                <i data-lucide="fingerprint" class="h-4 w-4"></i>
+                <span>SPOOFING</span>
+              </button>
+            </div>
+
+            <div class="pt-1">
+              <button onclick="triggerAttack('NORMAL')" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-mono text-[11px] font-bold rounded-lg cursor-pointer transition-all uppercase tracking-wider flex items-center justify-center gap-2">
+                <i data-lucide="activity" class="h-3.5 w-3.5"></i>
+                Stop Intrusion & Arm IDS
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Panel 3: Interactive Security Rules Sliders (Matches React Rules Panel) -->
+        <div class="bento-card border rounded-2xl p-5 shadow-sm space-y-4 theme-transition">
+          <div class="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800/60">
+            <i data-lucide="wrench" class="h-4.5 w-4.5 text-indigo-500"></i>
+            <h3 class="text-xs font-bold uppercase tracking-wider font-mono text-slate-700 dark:text-slate-300">IDS Security Rules / Threshold Controls</h3>
+          </div>
+          
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <!-- Rule 1: DoS Rate Flood Slider -->
+            <div class="space-y-2 bg-slate-50 dark:bg-slate-900/40 p-3.5 border border-slate-100 dark:border-slate-800/50 rounded-xl">
+              <div class="flex justify-between items-center">
+                <span class="text-[10px] font-bold font-mono text-slate-650 dark:text-slate-300">DOS FLOOD RATE</span>
+                <span id="ruleDosBadge" class="text-[9px] bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-mono font-semibold px-1.5 py-0.5 rounded border border-emerald-500/20">GUARD ARMED</span>
+              </div>
+              <p class="text-[9px] text-slate-500 dark:text-slate-400 font-mono">Arbitration ID 0x000 frequency threshold before alarm tripwire fires.</p>
+              <div class="flex justify-between text-[10px] font-mono text-slate-450 pt-1">
+                <span>LIMIT THRESHOLD</span>
+                <span id="ruleDosValue" class="font-bold text-slate-700 dark:text-slate-200">700 Hz</span>
+              </div>
+              <input
+                type="range"
+                id="ruleDosSlider"
+                min="100"
+                max="1000"
+                step="50"
+                value="700"
+                oninput="updateRuleValue('DOS', this.value)"
+                class="w-full accent-rose-500 bg-slate-200 dark:bg-slate-800 h-1.5 rounded cursor-pointer"
+              />
+            </div>
+
+            <!-- Rule 2: Shannon Entropy Slider -->
+            <div class="space-y-2 bg-slate-50 dark:bg-slate-900/40 p-3.5 border border-slate-100 dark:border-slate-800/50 rounded-xl">
+              <div class="flex justify-between items-center">
+                <span class="text-[10px] font-bold font-mono text-slate-650 dark:text-slate-300">SHANNON ENTROPY</span>
+                <span id="ruleEntropyBadge" class="text-[9px] bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-mono font-semibold px-1.5 py-0.5 rounded border border-emerald-500/20">GUARD ARMED</span>
+              </div>
+              <p class="text-[9px] text-slate-500 dark:text-slate-400 font-mono">Detect payload randomness anomalies (random payload fuzzer protection).</p>
+              <div class="flex justify-between text-[10px] font-mono text-slate-450 pt-1">
+                <span>LIMIT THRESHOLD</span>
+                <span id="ruleEntropyValue" class="font-bold text-slate-700 dark:text-slate-200">2.2 bits</span>
+              </div>
+              <input
+                type="range"
+                id="ruleEntropySlider"
+                min="1.0"
+                max="3.0"
+                step="0.1"
+                value="2.2"
+                oninput="updateRuleValue('Entropy', this.value)"
+                class="w-full accent-purple-500 bg-slate-200 dark:bg-slate-800 h-1.5 rounded cursor-pointer"
+              />
+            </div>
+
+            <!-- Rule 3: Jitter Slider -->
+            <div class="space-y-2 bg-slate-50 dark:bg-slate-900/40 p-3.5 border border-slate-100 dark:border-slate-800/50 rounded-xl">
+              <div class="flex justify-between items-center">
+                <span class="text-[10px] font-bold font-mono text-slate-650 dark:text-slate-300">TEMPORAL JITTER</span>
+                <span id="ruleJitterBadge" class="text-[9px] bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-mono font-semibold px-1.5 py-0.5 rounded border border-emerald-500/20">GUARD ARMED</span>
+              </div>
+              <p class="text-[9px] text-slate-500 dark:text-slate-400 font-mono">Triggers when frame intervals drift beyond normal temporal values.</p>
+              <div class="flex justify-between text-[10px] font-mono text-slate-450 pt-1">
+                <span>LIMIT THRESHOLD</span>
+                <span id="ruleJitterValue" class="font-bold text-slate-700 dark:text-slate-200">12 ms</span>
+              </div>
+              <input
+                type="range"
+                id="ruleJitterSlider"
+                min="5"
+                max="40"
+                step="1"
+                value="12"
+                oninput="updateRuleValue('Jitter', this.value)"
+                class="w-full accent-amber-500 bg-slate-200 dark:bg-slate-800 h-1.5 rounded cursor-pointer"
+              />
+            </div>
+          </div>
+        </div>
+
+        <!-- Section: Threat Defense Log Feed -->
+        <div class="bento-card border rounded-2xl shadow-sm flex flex-col theme-transition">
+          <div class="border-b border-slate-200 dark:border-slate-800/80 px-5 py-4 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/30">
+            <div class="flex items-center gap-2">
+              <i data-lucide="list-collapse" class="h-4.5 w-4.5 text-indigo-500"></i>
+              <span class="text-xs font-bold uppercase tracking-wider font-mono text-slate-700 dark:text-slate-300">Intrusion Alarm System Logger</span>
+            </div>
+            <span id="alertsCountBadge" class="text-[9px] bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-mono px-2 py-0.5 rounded-full">0 Active Warnings</span>
+          </div>
+          <!-- Logs Table List -->
+          <div class="max-h-[170px] overflow-y-auto p-4 space-y-2 font-mono text-[10px] min-h-[120px]" id="idsLogFeed">
+            <div class="text-slate-450 dark:text-slate-500 italic py-2 text-center">IDS initialized. Monitoring nodes for signals...</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Column Right: Live Real-Time Charts & Hex Frame Stream (4 Cols) -->
+      <div class="lg:col-span-4 space-y-6">
+
+        <!-- Metrics Dashboard: Frequency and Entropy Real-Time Charts -->
+        <div class="bento-card border rounded-2xl p-4 shadow-sm space-y-4 theme-transition">
+          <div class="flex justify-between items-center pb-2.5 border-b border-slate-100 dark:border-slate-800/60">
+            <div class="flex items-center gap-2">
+              <i data-lucide="line-chart" class="h-4 w-4 text-emerald-500"></i>
+              <h3 class="text-xs font-bold uppercase tracking-wider font-mono text-slate-700 dark:text-slate-300">Live Network Telemetry</h3>
+            </div>
+            <span class="text-[9px] font-mono bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded font-semibold uppercase">Dual Charts</span>
+          </div>
+
+          <!-- Real-Time Metrics & Canvas Grids (Matches React's double metric charts) -->
+          <div class="space-y-4">
+            <!-- Chart 1: Frame Frequency (DoS sensor) -->
+            <div class="space-y-1">
+              <div class="flex justify-between text-[9.5px] font-mono">
+                <span class="text-slate-500 dark:text-slate-400">NETWORK FRAME FREQUENCY</span>
+                <span id="metricMsgSpeed" class="font-bold text-emerald-500">250 Hz</span>
+              </div>
+              <div class="h-[90px] bg-slate-950/20 dark:bg-slate-950/80 border border-slate-200/50 dark:border-slate-900 rounded-xl overflow-hidden p-1">
+                <canvas id="freqChart" class="w-full h-full"></canvas>
+              </div>
+            </div>
+
+            <!-- Chart 2: Shannon Payload Entropy (Fuzzing sensor) -->
+            <div class="space-y-1">
+              <div class="flex justify-between text-[9.5px] font-mono">
+                <span class="text-slate-500 dark:text-slate-400">SHANNON PAYLOAD ENTROPY</span>
+                <span id="metricEntropy" class="font-bold text-purple-500">0.5 bits</span>
+              </div>
+              <div class="h-[90px] bg-slate-950/20 dark:bg-slate-950/80 border border-slate-200/50 dark:border-slate-900 rounded-xl overflow-hidden p-1">
+                <canvas id="entropyChart" class="w-full h-full"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Alert Count Card -->
+          <div class="grid grid-cols-2 gap-3 pt-1 select-none">
+            <div class="bg-rose-500/5 dark:bg-rose-500/10 border border-rose-500/25 dark:border-rose-500/20 p-3 rounded-xl flex items-center justify-between">
+              <div>
+                <span class="text-[8px] font-mono text-rose-500 uppercase tracking-wider block">THREAT COUNT</span>
+                <span id="metricAlerts" class="text-xl font-bold font-mono text-rose-500">0</span>
+              </div>
+              <div class="text-rose-500">
+                <i data-lucide="alert-octagon" class="h-4.5 w-4.5"></i>
+              </div>
+            </div>
+
+            <div class="bg-indigo-500/5 dark:bg-indigo-500/10 border border-indigo-500/25 dark:border-indigo-500/20 p-3 rounded-xl flex items-center justify-between">
+              <div>
+                <span class="text-[8px] font-mono text-indigo-500 uppercase tracking-wider block">BUS LOAD %</span>
+                <span id="metricBusLoad" class="text-xl font-bold font-mono text-indigo-500">22%</span>
+              </div>
+              <div class="text-indigo-500">
+                <i data-lucide="gauge" class="h-4.5 w-4.5"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel: Hex Frame Console (Matched EXACTLY with React colors and spacing) -->
+        <div class="bg-[#111827] border border-slate-800 rounded-2xl shadow-xl flex flex-col overflow-hidden h-[450px]">
+          <!-- Panel Header -->
+          <div class="border-b border-slate-800 px-5 py-4 flex justify-between items-center bg-slate-900/60">
+            <div class="flex items-center gap-2">
+              <i data-lucide="terminal" class="h-4 w-4 text-emerald-400"></i>
+              <span class="text-xs font-bold uppercase tracking-wider font-mono text-slate-300">Packet Spark Logger</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+              <span class="text-[9px] font-mono text-emerald-400 font-bold uppercase">Streaming</span>
+            </div>
+          </div>
+
+          <!-- Console Packet Log Feed -->
+          <div id="packetStream" class="flex-1 overflow-y-auto p-4 space-y-2.5 font-mono text-[10px] bg-slate-950/80">
+            <!-- Packed frame logs will slide in here dynamically -->
+          </div>
+
+          <!-- Terminal Status Footer -->
+          <div class="border-t border-slate-800 px-5 py-3 flex justify-between items-center bg-slate-900/60 font-mono text-[9px] text-slate-400">
+            <span>FILTER: ALL_TRAFFIC</span>
+            <span id="totalPacketsLogged">TX_COUNT: 01482</span>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- Page Footer -->
+    <footer class="flex flex-col sm:flex-row justify-between items-center border-t border-slate-200 dark:border-slate-800/80 pt-4 pb-2 font-mono text-[10px] text-slate-400 dark:text-slate-500 gap-2">
+      <div class="flex flex-wrap gap-x-6 gap-y-1">
+        <div class="flex items-center gap-1.5">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+          NODE_ARMED: ENGINE_ECU
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+          NODE_ARMED: BATTERY_BMS
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+          NODE_STATUS: CABIN_BCM
+        </div>
+      </div>
+      <div>
+        <span>SECURITY LEVEL: ADVANCED GUARD</span>
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- Simulation Logic & Interactions Script -->
+  <script>
+    // -----------------------------------------------------------------
+    // Vehicle Profile Data (Matches exactly React's metadata configuration)
+    // -----------------------------------------------------------------
+    const CAR_PROFILES = [
+      {
+        name: 'TATA NEXON EV (Active.EV Arc)',
+        nodes: [
+          { id: 'vcu', label: 'Vehicle Controller (ECU)', xFactor: 0.18, y: -70, color: '#0ea5e9', active: true },
+          { id: 'bms', label: 'Battery Monitor (ECU)', xFactor: 0.45, y: 70, color: '#14b8a6', active: true },
+          { id: 'mcu', label: 'Motor Controller (ECU)', xFactor: 0.8, y: -70, color: '#6366f1', active: true },
+          { id: 'gateway', label: 'Security Gateway (Gateway)', xFactor: 0.5, y: -70, color: '#f43f5e', active: false, highlight: true }
+        ],
+        signals: [
+          { id: '0x08F', name: 'Ziptron Power Demand', source: 'Vehicle Controller (ECU)', destination: 'Motor Controller (ECU)', desc: 'Accelerator pedal position, dynamic torque requests, dynamic sport drive metrics.' },
+          { id: '0x135', name: 'High-Voltage Battery SoC', source: 'Battery Monitor (ECU)', destination: 'Security Gateway (Gateway)', desc: 'High-voltage charge index, active thermal coolant flow rate.' },
+          { id: '0x242', name: 'VCU Drive Selector', source: 'Vehicle Controller (ECU)', destination: 'Battery Monitor (ECU)', desc: 'Electronic shifter positions, safety key telemetry verification hashes.' },
+          { id: '0x32A', name: 'MCU Thermal Chiller Loop', source: 'Motor Controller (ECU)', destination: 'Battery Monitor (ECU)', desc: 'Rotor temperature signals, electronic water pump RPMs.' }
+        ]
+      },
+      {
+        name: 'ACTIV.EV SMART CITY CAR',
+        nodes: [
+          { id: 'vcu', label: 'Vehicle Controller (ECU)', xFactor: 0.15, y: -70, color: '#0ea5e9', active: true },
+          { id: 'bms', label: 'Battery Monitor (ECU)', xFactor: 0.38, y: 70, color: '#14b8a6', active: true },
+          { id: 'adas', label: 'ADAS Radar (ECU)', xFactor: 0.62, y: -70, color: '#f59e0b', active: true },
+          { id: 'eps', label: 'Steering Controller (ECU)', xFactor: 0.85, y: 70, color: '#10b981', active: true },
+          { id: 'gateway', label: 'Security Gateway (Gateway)', xFactor: 0.5, y: -70, color: '#f43f5e', active: false, highlight: true }
+        ],
+        signals: [
+          { id: '0x05B', name: 'Lane Correction Assistance', source: 'Steering Controller (ECU)', destination: 'Vehicle Controller (ECU)', desc: 'Self-steering motor torque indexes, yaw rate indicators.' },
+          { id: '0x112', name: 'ADAS Target Trajectory', source: 'ADAS Radar (ECU)', destination: 'Steering Controller (ECU)', desc: 'Dynamic distance to road obstacles, hazard classification vectors.' },
+          { id: '0x1B8', name: 'EPS Torque Assistance', source: 'Steering Controller (ECU)', destination: 'Security Gateway (Gateway)', desc: 'Manual steering wheel yaw torque vectors, active self-steering correction inputs.' },
+          { id: '0x2A1', name: 'Regenerative Brake Pressure', source: 'Steering Controller (ECU)', destination: 'Battery Monitor (ECU)', desc: 'Regen brake torque capture targets and active friction pad parameters.' },
+          { id: '0x3C4', name: 'Liquid Pack Cooling Valves', source: 'Battery Monitor (ECU)', destination: 'Security Gateway (Gateway)', desc: 'Auxiliary coolant valve pressure rates, liquid module cell temperature.' }
+        ]
+      },
+      {
+        name: 'LAND ROVER DEFENDER (D7x Platform)',
+        nodes: [
+          { id: 'aj133', label: 'Engine Controller (ECU)', xFactor: 0.18, y: -70, color: '#f43f5e', active: true },
+          { id: 'susp', label: 'Suspension Controller (ECU)', xFactor: 0.45, y: 70, color: '#a855f7', active: true },
+          { id: 'tr2', label: 'Terrain Controller (ECU)', xFactor: 0.8, y: -70, color: '#ec4899', active: true },
+          { id: 'gateway', label: 'Security Gateway (Gateway)', xFactor: 0.5, y: -70, color: '#10b981', active: false, highlight: true }
+        ],
+        signals: [
+          { id: '0x098', name: 'Engine RPM & Ignition', source: 'Engine Controller (ECU)', destination: 'Terrain Controller (ECU)', desc: 'Combustion manifold temperature metrics, high-output torque values.' },
+          { id: '0x102', name: 'Chassis Air Strut Damper', source: 'Suspension Controller (ECU)', destination: 'Security Gateway (Gateway)', desc: 'Active dynamic air pressure levels, terrain height compensation coefficients.' },
+          { id: '0x150', name: 'Terrain Response Modes', source: 'Terrain Controller (ECU)', destination: 'Engine Controller (ECU)', desc: 'Mud / sand / rock slippage coefficients, transfer box lock status.' },
+          { id: '0x301', name: 'Active Sway-Bar Stabilizer', source: 'Terrain Controller (ECU)', destination: 'Suspension Controller (ECU)', desc: 'Roll angle calculations, hydraulic system pressure configurations.' }
+        ]
+      },
+      {
+        name: 'HARRIER DARK EDITION (OmegaArc)',
+        nodes: [
+          { id: 'kryotec', label: 'Engine Controller (ECU)', xFactor: 0.18, y: -70, color: '#eab308', active: true },
+          { id: 'esp', label: 'Stability Controller (ECU)', xFactor: 0.45, y: 70, color: '#f97316', active: true },
+          { id: 'bcm', label: 'Cabin Controller (ECU)', xFactor: 0.8, y: -70, color: '#6366f1', active: true },
+          { id: 'gateway', label: 'Security Gateway (Gateway)', xFactor: 0.5, y: -70, color: '#f43f5e', active: false, highlight: true }
+        ],
+        signals: [
+          { id: '0x1A8', name: 'Kryotec Throttle Signals', source: 'Engine Controller (ECU)', destination: 'Stability Controller (ECU)', desc: 'Turbocharger pressure metrics, exhaust valve parameters.' },
+          { id: '0x2F5', name: 'Terrain Response Selector', source: 'Stability Controller (ECU)', destination: 'Security Gateway (Gateway)', desc: 'Dynamic dial states, brake vector friction multiplier metrics.' },
+          { id: '0x3F8', name: 'Harrier ESP Active Slip', source: 'Stability Controller (ECU)', destination: 'Engine Controller (ECU)', desc: 'Wheel speed differential parameters, traction mitigation requests.' },
+          { id: '0x4EE', name: 'Dark Comfort Red Ambient', source: 'Cabin Controller (ECU)', destination: 'Security Gateway (Gateway)', desc: 'Chassis dome illumination levels, animated sweeping indicators.' }
+        ]
+      }
+    ];
+
+    // -----------------------------------------------------------------
+    // Simulation Coordinate System Boundaries (800x260 exact scaling)
+    // -----------------------------------------------------------------
+    const TOPO_WIDTH = 800;
+    const TOPO_HEIGHT = 260;
+
+    let isPlaying = true;
+    let currentMode = 'NORMAL'; // 'NORMAL' | 'DOS' | 'FUZZ' | 'SPOOF'
+    let packetSpeedMultiplier = 1.0;
+    let selectedProfileIndex = 0;
+    let isDark = true;
+    let isMuted = false;
+    
+    let totalPacketsLogged = 1482;
+    let alertsCount = 0;
+    
+    // Lists for packets, alerts, chart history
+    let packetsList = [];
+    let alertsList = [];
+    
+    // Slide metrics (matches React 100ms updates)
+    let freqHistory = Array(50).fill(250); // Frame Frequency
+    let entropyHistory = Array(50).fill(0.5); // Shannon Entropy
+    
+    // Interactive active thresholds configuration values
+    const ruleLimits = {
+      DOS: 700,      // Hz
+      Entropy: 2.2,  // bits
+      Jitter: 12     // ms
+    };
+
+    // Particles system on landing
+    class Particle {
+      constructor(x, y, color) {
+        this.x = x;
+        this.y = y;
+        this.vx = (Math.random() - 0.5) * 3;
+        this.vy = (Math.random() - 0.5) * 3;
+        this.radius = Math.random() * 2 + 1;
+        this.alpha = 1.0;
+        this.decay = Math.random() * 0.05 + 0.03;
+        this.color = color;
+      }
+      update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.alpha -= this.decay;
+      }
+      draw(c) {
+        c.save();
+        c.globalAlpha = Math.max(0, this.alpha);
+        c.fillStyle = this.color;
+        c.beginPath();
+        c.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        c.fill();
+        c.restore();
+      }
+    }
+    
+    let canvasParticles = [];
+
+    // Animated packets on the canvas bus
+    class VisualPacket {
+      constructor(id, type, sourceId, destId, sourceX, sourceY, targetX, targetY, speed, payload, color) {
+        this.id = id;
+        this.type = type;
+        this.sourceId = sourceId;
+        this.destId = destId;
+        this.sourceX = sourceX;
+        this.sourceY = sourceY;
+        this.targetX = targetX;
+        this.targetY = targetY;
+        this.progress = 0;
+        this.speed = speed * 0.015;
+        this.payload = payload;
+        this.color = color;
+      }
+      
+      update(mult) {
+        this.progress += this.speed * mult;
+      }
+
+      draw(c, centerY) {
+        let px, py;
+        
+        // Phase 1: From Source down to backbone
+        if (this.progress < 0.3) {
+          const subProg = this.progress / 0.3;
+          px = this.sourceX;
+          py = this.sourceY + (centerY - this.sourceY) * subProg;
+        } 
+        // Phase 2: Along the CAN Bus wires
+        else if (this.progress < 0.7) {
+          const subProg = (this.progress - 0.3) / 0.4;
+          px = this.sourceX + (this.targetX - this.sourceX) * subProg;
+          py = centerY;
+        } 
+        // Phase 3: Up to destination stub node
+        else if (this.progress < 1.0) {
+          const subProg = (this.progress - 0.7) / 0.3;
+          px = this.targetX;
+          py = centerY + (this.targetY - centerY) * subProg;
+        } else {
+          px = this.targetX;
+          py = this.targetY;
+        }
+
+        c.save();
+        c.beginPath();
+        c.arc(px, py, 4.0, 0, Math.PI * 2);
+        c.fillStyle = this.color;
+        c.shadowBlur = 8;
+        c.shadowColor = this.color;
+        c.fill();
+        c.restore();
+      }
+    }
+    
+    let canvasPackets = [];
+
+    // Canvas refs
+    const canvas = document.getElementById('topologyCanvas');
+    const ctx = canvas.getContext('2d');
+    const freqCanvas = document.getElementById('freqChart');
+    const fCtx = freqCanvas.getContext('2d');
+    const entropyCanvas = document.getElementById('entropyChart');
+    const eCtx = entropyCanvas.getContext('2d');
+
+    // -----------------------------------------------------------------
+    // Sound Warning Synthesizer Engine (Matched with React audio)
+    // -----------------------------------------------------------------
+    let audioCtx = null;
+    let alarmOsc = null;
+    let alarmGain = null;
+
+    function initAudio() {
+      if (audioCtx) return;
+      try {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AudioContextClass();
+      } catch (e) {
+        console.warn('Web Audio API not supported in this environment');
+      }
+    }
+
+    function startAlarmSound(type) {
+      if (isMuted) return;
+      initAudio();
+      if (!audioCtx) return;
+
+      // Stop existing if running
+      stopAlarmSound();
+
+      try {
+        alarmOsc = audioCtx.createOscillator();
+        alarmGain = audioCtx.createGain();
+
+        if (type === 'dos') {
+          // Rapid warning pulse
+          alarmOsc.type = 'sawtooth';
+          alarmOsc.frequency.setValueAtTime(140, audioCtx.currentTime);
+          
+          // Modulate pitch at 8Hz interval
+          const lfo = audioCtx.createOscillator();
+          const lfoGain = audioCtx.createGain();
+          lfo.frequency.setValueAtTime(8, audioCtx.currentTime);
+          lfoGain.gain.setValueAtTime(40, audioCtx.currentTime);
+          lfo.connect(lfoGain);
+          lfoGain.connect(alarmOsc.frequency);
+          lfo.start();
+          
+          // Cache lfo reference on oscillator to clear together
+          alarmOsc._lfo = lfo;
+        } else if (type === 'fuzz') {
+          // Low sweeping friction wave
+          alarmOsc.type = 'triangle';
+          alarmOsc.frequency.setValueAtTime(90, audioCtx.currentTime);
+          
+          const lfo = audioCtx.createOscillator();
+          const lfoGain = audioCtx.createGain();
+          lfo.frequency.setValueAtTime(2.5, audioCtx.currentTime);
+          lfoGain.gain.setValueAtTime(20, audioCtx.currentTime);
+          lfo.connect(lfoGain);
+          lfoGain.connect(alarmOsc.frequency);
+          lfo.start();
+          
+          alarmOsc._lfo = lfo;
+        } else {
+          // Spoof: High-pitched double alarm
+          alarmOsc.type = 'sine';
+          alarmOsc.frequency.setValueAtTime(650, audioCtx.currentTime);
+          
+          const lfo = audioCtx.createOscillator();
+          const lfoGain = audioCtx.createGain();
+          lfo.frequency.setValueAtTime(5, audioCtx.currentTime);
+          lfoGain.gain.setValueAtTime(150, audioCtx.currentTime);
+          lfo.connect(lfoGain);
+          lfoGain.connect(alarmOsc.frequency);
+          lfo.start();
+          
+          alarmOsc._lfo = lfo;
+        }
+
+        alarmGain.gain.setValueAtTime(0.04, audioCtx.currentTime); // keep volume subtle
+        alarmOsc.connect(alarmGain);
+        alarmGain.connect(audioCtx.destination);
+        alarmOsc.start();
+      } catch (err) {
+        console.error('Failed to initialize synthesizer alarm sound: ', err);
+      }
+    }
+
+    function stopAlarmSound() {
+      if (alarmOsc) {
+        try {
+          if (alarmOsc._lfo) {
+            alarmOsc._lfo.stop();
+          }
+          alarmOsc.stop();
+        } catch (e) {}
+        alarmOsc = null;
+      }
+      alarmGain = null;
+    }
+
+    function toggleMute() {
+      isMuted = !isMuted;
+      const btn = document.getElementById('audioToggleBtn');
+      const icon = document.getElementById('audio-icon');
+      
+      if (isMuted) {
+        icon.setAttribute('data-lucide', 'volume-x');
+        btn.className = "bento-card border bg-slate-100 dark:bg-slate-800 p-2.5 rounded-xl cursor-pointer transition-all flex items-center justify-center text-rose-500 border-rose-500/20";
+        stopAlarmSound();
+      } else {
+        icon.setAttribute('data-lucide', 'volume-2');
+        btn.className = "bento-card border hover:bg-slate-100 dark:hover:bg-slate-800 p-2.5 rounded-xl cursor-pointer transition-all flex items-center justify-center text-slate-500 dark:text-slate-300";
+        if (currentMode !== 'NORMAL') {
+          startAlarmSound(currentMode.toLowerCase());
+        }
+      }
+      lucide.createIcons();
+    }
+
+    // -----------------------------------------------------------------
+    // Initialization & Lifecycle Hooks
+    // -----------------------------------------------------------------
+    window.addEventListener('DOMContentLoaded', () => {
+      // Initialize Lucide Icons
+      lucide.createIcons();
+      
+      // Setup HTML Canvas sizing
+      resizeCanvas();
+      window.addEventListener('resize', resizeCanvas);
+      
+      // Attach hover listener on topology canvas
+      canvas.addEventListener('mousemove', handleCanvasMouseMove);
+      canvas.addEventListener('click', handleCanvasClick);
+      
+      // Start Background Frame Emitters
+      startSimulationEmitters();
+      startSlidingTelemetryLoop();
+      
+      // Start Animation Loop
+      requestAnimationFrame(animationLoop);
+    });
+
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * window.devicePixelRatio;
+      canvas.height = rect.height * window.devicePixelRatio;
+
+      const fRect = freqCanvas.getBoundingClientRect();
+      freqCanvas.width = fRect.width * window.devicePixelRatio;
+      freqCanvas.height = fRect.height * window.devicePixelRatio;
+
+      const eRect = entropyCanvas.getBoundingClientRect();
+      entropyCanvas.width = eRect.width * window.devicePixelRatio;
+      entropyCanvas.height = eRect.height * window.devicePixelRatio;
+    }
+
+    // -----------------------------------------------------------------
+    // Theme Switcher Handler (Perfect dark-slate and white theme)
+    // -----------------------------------------------------------------
+    function toggleTheme() {
+      isDark = !isDark;
+      const html = document.documentElement;
+      const icon = document.getElementById('theme-icon');
+      
+      if (isDark) {
+        html.classList.add('dark');
+        icon.setAttribute('data-lucide', 'sun');
+      } else {
+        html.classList.remove('dark');
+        icon.setAttribute('data-lucide', 'moon');
+      }
+      lucide.createIcons();
+    }
+
+    // -----------------------------------------------------------------
+    // Rule configuration threshold bindings
+    // -----------------------------------------------------------------
+    function updateRuleValue(type, val) {
+      if (type === 'DOS') {
+        ruleLimits.DOS = parseInt(val);
+        document.getElementById('ruleDosValue').innerText = val + ' Hz';
+      } else if (type === 'Entropy') {
+        ruleLimits.Entropy = parseFloat(val);
+        document.getElementById('ruleEntropyValue').innerText = val + ' bits';
+      } else if (type === 'Jitter') {
+        ruleLimits.Jitter = parseInt(val);
+        document.getElementById('ruleJitterValue').innerText = val + ' ms';
+      }
+      addSystemLog(`RULE_UPDATE: Updated target [${type.toUpperCase()}] tripwire threshold to ${val}.`, 'info');
+    }
+
+    // -----------------------------------------------------------------
+    // Interactive Controllers Hooks
+    // -----------------------------------------------------------------
+    function togglePlayPause() {
+      isPlaying = !isPlaying;
+      const btn = document.getElementById('playPauseBtn');
+      const text = document.getElementById('playPauseText');
+      
+      if (isPlaying) {
+        text.innerText = 'PAUSE BUS';
+        btn.className = "flex-1 py-2.5 rounded-lg text-xs font-bold font-mono flex items-center justify-center gap-2 transition-all cursor-pointer bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200";
+        btn.querySelector('i').setAttribute('data-lucide', 'pause');
+      } else {
+        text.innerText = 'RESUME BUS';
+        btn.className = "flex-1 py-2.5 rounded-lg text-xs font-bold font-mono flex items-center justify-center gap-2 transition-all cursor-pointer bg-emerald-600 hover:bg-emerald-500 text-white animate-pulse";
+        btn.querySelector('i').setAttribute('data-lucide', 'play');
+        stopAlarmSound();
+      }
+      lucide.createIcons();
+    }
+
+    function changeProfile(val) {
+      selectedProfileIndex = parseInt(val);
+      canvasPackets = [];
+      canvasParticles = [];
+      addSystemLog(`PROFILE_CHANGED: Configured node parameters to profile [${CAR_PROFILES[selectedProfileIndex].name}]`, 'info');
+      triggerAttack('NORMAL'); // Reset to Normal on profile change
+    }
+
+    function changeSpeed(val) {
+      packetSpeedMultiplier = parseFloat(val);
+      document.getElementById('speedVal').innerText = packetSpeedMultiplier.toFixed(1) + 'x';
+    }
+
+    function clearLogs() {
+      packetsList = [];
+      alertsList = [];
+      alertsCount = 0;
+      totalPacketsLogged = 0;
+      canvasPackets = [];
+      canvasParticles = [];
+      
+      document.getElementById('packetStream').innerHTML = '';
+      document.getElementById('idsLogFeed').innerHTML = '<div class="text-slate-450 dark:text-slate-500 italic py-2 text-center">Logs reset by user. Monitoring nodes...</div>';
+      document.getElementById('metricAlerts').innerText = '0';
+      document.getElementById('totalPacketsLogged').innerText = 'TX_COUNT: 00000';
+      document.getElementById('alertsCountBadge').innerText = '0 Active Warnings';
+      
+      addSystemLog('ID_SYS_LOG: Local threat index and logs cleared successfully', 'info');
+    }
+
+    // -----------------------------------------------------------------
+    // Intrusion Injection Machine & Threat Rules Engine
+    // -----------------------------------------------------------------
+    function triggerAttack(type) {
+      currentMode = type;
+      
+      const dosBtn = document.getElementById('dosBtn');
+      const fuzzBtn = document.getElementById('fuzzBtn');
+      const spoofBtn = document.getElementById('spoofBtn');
+      
+      const statusBadge = document.getElementById('statusBadge');
+      const sysStatus = document.getElementById('system-status');
+      const sysIndicator = document.getElementById('system-indicator');
+      const sysGlow = document.getElementById('system-glow');
+      
+      // Reset button styles to default
+      dosBtn.className = "py-2.5 px-1 text-[10px] font-mono font-bold border border-rose-500/30 text-rose-600 dark:text-rose-400 bg-rose-500/5 hover:bg-rose-500/15 rounded-lg transition-all cursor-pointer flex flex-col items-center gap-1.5 text-center justify-center";
+      fuzzBtn.className = "py-2.5 px-1 text-[10px] font-mono font-bold border border-purple-500/30 text-purple-600 dark:text-purple-400 bg-purple-500/5 hover:bg-purple-500/15 rounded-lg transition-all cursor-pointer flex flex-col items-center gap-1.5 text-center justify-center";
+      spoofBtn.className = "py-2.5 px-1 text-[10px] font-mono font-bold border border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/5 hover:bg-amber-500/15 rounded-lg transition-all cursor-pointer flex flex-col items-center gap-1.5 text-center justify-center";
+
+      if (!isPlaying) return;
+
+      if (type === 'DOS') {
+        dosBtn.className = "py-2.5 px-1 text-[10px] font-mono font-bold border border-rose-500 text-white bg-rose-600 rounded-lg transition-all cursor-pointer flex flex-col items-center gap-1.5 text-center justify-center";
+        
+        statusBadge.className = "flex items-center gap-2 bg-red-50 text-red-600 border-red-200 dark:bg-rose-500/10 dark:border-rose-500/25 dark:text-rose-400 px-3.5 py-1.5 rounded-lg border text-xs font-mono font-semibold animate-pulse shadow-sm";
+        sysStatus.innerText = "CRITICAL: DOS FLOOD DETECTED";
+        sysIndicator.className = "relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500";
+        sysGlow.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75";
+        
+        addAlertLog('0x000', 'CRITICAL_DOS', 'Denial of Service flood detected on blocking identifier 0x000 (ECU priority starvation).');
+        startAlarmSound('dos');
+      } else if (type === 'FUZZ') {
+        fuzzBtn.className = "py-2.5 px-1 text-[10px] font-mono font-bold border border-purple-500 text-white bg-purple-600 rounded-lg transition-all cursor-pointer flex flex-col items-center gap-1.5 text-center justify-center";
+        
+        statusBadge.className = "flex items-center gap-2 bg-purple-50 text-purple-600 border-purple-200 dark:bg-purple-500/10 dark:border-purple-500/25 dark:text-purple-400 px-3.5 py-1.5 rounded-lg border text-xs font-mono font-semibold shadow-sm";
+        sysStatus.innerText = "WARNING: FUZZING ENTROPY ALERT";
+        sysIndicator.className = "relative inline-flex rounded-full h-2.5 w-2.5 bg-purple-500";
+        sysGlow.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75";
+        
+        addAlertLog('RAND_ID', 'FUZZ_STORM', 'High entropy fuzzer injecting rapid out-of-order payloads across arbitrary identifiers.');
+        startAlarmSound('fuzz');
+      } else if (type === 'SPOOF') {
+        spoofBtn.className = "py-2.5 px-1 text-[10px] font-mono font-bold border border-amber-500 text-white bg-amber-600 rounded-lg transition-all cursor-pointer flex flex-col items-center gap-1.5 text-center justify-center";
+        
+        statusBadge.className = "flex items-center gap-2 bg-orange-50 text-orange-600 border-orange-200 dark:bg-orange-500/10 dark:border-orange-500/25 dark:text-orange-400 px-3.5 py-1.5 rounded-lg border text-xs font-mono font-semibold animate-pulse shadow-sm";
+        sysStatus.innerText = "WARNING: SPOOFING DETECTED";
+        sysIndicator.className = "relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500";
+        sysGlow.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75";
+        
+        addAlertLog('0x242', 'PAYLOAD_SPOOF', 'Out-of-bounds telemetry spoofing detected (Engine/BMS response mismatch parameters).');
+        startAlarmSound('spoof');
+      } else {
+        // Stop Sound
+        stopAlarmSound();
+        
+        statusBadge.className = "flex items-center gap-2 bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-500/10 dark:border-emerald-500/20 dark:text-emerald-400 px-3.5 py-1.5 rounded-lg border text-xs font-mono font-semibold shadow-sm";
+        sysStatus.innerText = "SYSTEM SECURE";
+        sysIndicator.className = "relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500";
+        sysGlow.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75";
+        
+        addSystemLog('ID_SYS_ARMBAND: Malicious injection terminated. All gateways armed.', 'info');
+      }
+    }
+
+    // -----------------------------------------------------------------
+    // Packet Emitter Engine
+    // -----------------------------------------------------------------
+    function startSimulationEmitters() {
+      // Normal continuous traffic
+      setInterval(() => {
+        if (!isPlaying) return;
+        
+        const profile = CAR_PROFILES[selectedProfileIndex];
+        
+        // Pick random signal configured in profile to emit
+        const signal = profile.signals[Math.floor(Math.random() * profile.signals.length)];
+        
+        // Spawn standard packet
+        emitPacket({
+          id: signal.id,
+          name: signal.name,
+          dlc: 8,
+          payload: generateRandomHexPayload(8, false),
+          source: signal.source,
+          destination: signal.destination,
+          status: 'SECURE'
+        });
+      }, 750);
+
+      // Rapid Background Injector for active attack patterns
+      setInterval(() => {
+        if (!isPlaying || currentMode === 'NORMAL') return;
+
+        const profile = CAR_PROFILES[selectedProfileIndex];
+        const gatewayNode = profile.nodes.find(n => n.id === 'gateway');
+        const otherNodes = profile.nodes.filter(n => n.id !== 'gateway');
+
+        if (currentMode === 'DOS') {
+          // DoS attack: Flood with 0x000 frames from security gateway
+          emitPacket({
+            id: '0x000',
+            name: 'GATEWAY_DOS_FLOOD',
+            dlc: 8,
+            payload: '00 00 00 00 00 00 00 00',
+            source: 'Malicious Injection Tool',
+            destination: otherNodes[Math.floor(Math.random() * otherNodes.length)].label,
+            status: 'ATTACK_DOS'
+          });
+        } 
+        else if (currentMode === 'FUZZ') {
+          // Fuzzing attack: Random high speed packets
+          const randId = '0x' + Math.floor(Math.random() * 2047).toString(16).toUpperCase().padStart(3, '0');
+          emitPacket({
+            id: randId,
+            name: 'FUZZER_SPARK_FRAME',
+            dlc: Math.floor(Math.random() * 8) + 1,
+            payload: generateRandomHexPayload(8, true),
+            source: otherNodes[Math.floor(Math.random() * otherNodes.length)].label,
+            destination: 'Security Gateway (Gateway)',
+            status: 'ATTACK_FUZZ'
+          });
+        }
+        else if (currentMode === 'SPOOF') {
+          // Spoofing: Inject out of bounds payloads with existing ID
+          const targetSignal = profile.signals[Math.floor(Math.random() * profile.signals.length)];
+          emitPacket({
+            id: targetSignal.id,
+            name: `${targetSignal.name} [SPOOFED]`,
+            dlc: 8,
+            payload: 'FF FF C2 E1 00 00 A9 8E', // Abnormal payload spoof
+            source: targetSignal.source + ' (Spoofed)',
+            destination: targetSignal.destination,
+            status: 'ATTACK_SPOOF'
+          });
+          
+          if (Math.random() > 0.82) {
+            addAlertLog(targetSignal.id, 'SPOOF_MISMATCH', `Boundary breach on ${targetSignal.id} - anomalous field payload parameter received.`);
+          }
+        }
+      }, 100);
+    }
+
+    function generateRandomHexPayload(bytes, randomAll) {
+      const parts = [];
+      for (let i = 0; i < bytes; i++) {
+        if (randomAll) {
+          parts.push(Math.floor(Math.random() * 256).toString(16).toUpperCase().padStart(2, '0'));
+        } else {
+          parts.push(i % 3 === 0 ? '44' : Math.floor(Math.random() * 100).toString(16).toUpperCase().padStart(2, '0'));
+        }
+      }
+      return parts;
+    }
+
+    // Calculates Shannon Entropy of Hex payload elements
+    function calculateEntropy(parts) {
+      const counts = {};
+      parts.forEach(p => counts[p] = (counts[p] || 0) + 1);
+      let entropy = 0;
+      const total = parts.length;
+      for (const key in counts) {
+        const p = counts[key] / total;
+        entropy -= p * Math.log2(p);
+      }
+      return parseFloat(entropy.toFixed(3));
+    }
+
+    function emitPacket(pkt) {
+      totalPacketsLogged++;
+      document.getElementById('totalPacketsLogged').innerText = `TX_COUNT: ${String(totalPacketsLogged).padStart(5, '0')}`;
+      
+      const payloadArr = typeof pkt.payload === 'string' ? pkt.payload.split(' ') : pkt.payload;
+      const entropy = calculateEntropy(payloadArr);
+
+      // Spawn matching graphic spark particle in simulation canvas
+      const profile = CAR_PROFILES[selectedProfileIndex];
+      const startX = 140;
+      const endX = TOPO_WIDTH - 140;
+      const centerY = TOPO_HEIGHT / 2;
+
+      // Extract sources
+      const srcNode = profile.nodes.find(n => n.label === pkt.source || pkt.source.includes(n.label.split(' ')[0]));
+      const dstNode = profile.nodes.find(n => n.label === pkt.destination || pkt.destination.includes(n.label.split(' ')[0]));
+
+      let sx = startX - 50, sy = centerY;
+      let tx = startX - 50, ty = centerY;
+      let srcId = 'malicious';
+      let destId = 'gateway';
+
+      if (srcNode) {
+        sx = startX + (endX - startX) * srcNode.xFactor;
+        sy = centerY + srcNode.y;
+        srcId = srcNode.id;
+      }
+      if (dstNode) {
+        tx = startX + (endX - startX) * dstNode.xFactor;
+        ty = centerY + dstNode.y;
+        destId = dstNode.id;
+      }
+
+      let pColor = '#10b981';
+      if (pkt.status === 'ATTACK_DOS') pColor = '#ef4444';
+      else if (pkt.status === 'ATTACK_FUZZ') pColor = '#a855f7';
+      else if (pkt.status === 'ATTACK_SPOOF') pColor = '#f97316';
+
+      canvasPackets.push(new VisualPacket(
+        pkt.id,
+        pkt.status,
+        srcId,
+        destId,
+        sx,
+        sy,
+        tx,
+        ty,
+        pkt.status === 'ATTACK_DOS' ? 5.5 : pkt.status === 'ATTACK_FUZZ' ? 3.5 : 4.2,
+        payloadArr,
+        pColor
+      ));
+
+      // Render to DOM frame console
+      renderPacketToConsole(pkt, entropy);
+    }
+
+    function renderPacketToConsole(pkt, entropy) {
+      const stream = document.getElementById('packetStream');
+      const row = document.createElement('div');
+      
+      let statusColor = 'border-emerald-500/20 bg-emerald-500/5 text-slate-300';
+      let tag = '<span class="text-emerald-400 font-bold">✓ SECURE</span>';
+      
+      if (pkt.status === 'ATTACK_DOS') {
+        statusColor = 'border-rose-500 bg-rose-500/10 text-rose-300';
+        tag = '<span class="text-rose-400 font-bold animate-pulse">⚠️ REJECTED_DOS</span>';
+      } else if (pkt.status === 'ATTACK_FUZZ') {
+        statusColor = 'border-purple-500 bg-purple-500/10 text-purple-300';
+        tag = '<span class="text-purple-400 font-bold">⚠️ REJECTED_FUZZ</span>';
+      } else if (pkt.status === 'ATTACK_SPOOF') {
+        statusColor = 'border-amber-500 bg-amber-500/10 text-amber-300';
+        tag = '<span class="text-amber-400 font-bold">⚠️ BLOCKED_SPOOF</span>';
+      }
+
+      const timeOffset = ((performance.now() % 100000) / 1000).toFixed(3);
+      const payloadStr = (typeof pkt.payload === 'string' ? pkt.payload : pkt.payload.join(' '));
+      
+      row.className = `p-3.5 border rounded-xl flex flex-col gap-2 transition-all hover:scale-[1.01] ${statusColor}`;
+      row.innerHTML = `
+        <div class="flex justify-between items-center text-[10px] pb-1.5 border-b border-slate-800/50">
+          <div class="flex items-center gap-2">
+            <span class="bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded text-[8px] font-bold">+${timeOffset}s</span>
+            <span class="text-white font-bold tracking-wider">${pkt.id}</span>
+            <span class="text-slate-400 text-[9px] font-semibold">DLC:${pkt.dlc}</span>
+          </div>
+          <div>${tag}</div>
+        </div>
+        <div class="flex flex-col gap-1">
+          <div class="text-[11px] font-bold tracking-wider font-mono">${payloadStr}</div>
+          <div class="flex items-center justify-between text-[8.5px] text-slate-400 mt-1">
+            <span>TX: ${pkt.source.split(' ')[0]}</span>
+            <span>→</span>
+            <span>RX: ${pkt.destination.split(' ')[0]}</span>
+          </div>
+        </div>
+      `;
+
+      stream.insertBefore(row, stream.firstChild);
+      
+      if (stream.children.length > 25) {
+        stream.removeChild(stream.lastChild);
+      }
+    }
+
+    function addAlertLog(id, alertType, message) {
+      alertsCount++;
+      document.getElementById('metricAlerts').innerText = alertsCount;
+      document.getElementById('alertsCountBadge').innerText = `${alertsCount} Active Warnings`;
+
+      const container = document.getElementById('idsLogFeed');
+      const timeOffset = ((performance.now() % 100000) / 1000).toFixed(3);
+      const alertNode = document.createElement('div');
+      
+      alertNode.className = "flex items-start gap-3 bg-rose-500/10 border border-rose-500/20 p-3 rounded-xl text-rose-300 hover:scale-[1.005] transition-all";
+      alertNode.innerHTML = `
+        <div class="bg-rose-500/20 p-1.5 rounded text-rose-400 mt-0.5">
+          <i data-lucide="triangle-alert" class="h-4 w-4"></i>
+        </div>
+        <div class="flex-1">
+          <div class="flex justify-between items-center text-[9px] text-rose-400 font-bold">
+            <span>[ALERT :: ${alertType}] ID: ${id}</span>
+            <span>+${timeOffset}s</span>
+          </div>
+          <p class="text-[10px] text-rose-200 mt-1 font-sans">${message}</p>
+        </div>
+      `;
+
+      if (container.querySelector('.italic')) {
+        container.innerHTML = '';
+      }
+
+      container.insertBefore(alertNode, container.firstChild);
+      lucide.createIcons();
+    }
+
+    function addSystemLog(msg, type) {
+      const container = document.getElementById('idsLogFeed');
+      const timeOffset = ((performance.now() % 100000) / 1000).toFixed(3);
+      const logNode = document.createElement('div');
+      
+      logNode.className = "flex items-start gap-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 p-2.5 rounded-xl text-slate-600 dark:text-slate-300";
+      logNode.innerHTML = `
+        <div class="bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 p-1.5 rounded mt-0.5">
+          <i data-lucide="info" class="h-3.5 w-3.5"></i>
+        </div>
+        <div class="flex-1">
+          <div class="flex justify-between items-center text-[9px] text-slate-450 dark:text-slate-400">
+            <span>SYS_INFO</span>
+            <span>+${timeOffset}s</span>
+          </div>
+          <p class="text-[9.5px] mt-0.5">${msg}</p>
+        </div>
+      `;
+
+      if (container.querySelector('.italic')) {
+        container.innerHTML = '';
+      }
+
+      container.insertBefore(logNode, container.firstChild);
+      lucide.createIcons();
+    }
+
+    // -----------------------------------------------------------------
+    // Topology Node Hovers & Clicks Data Binding (Scaled tooltips)
+    // -----------------------------------------------------------------
+    let hoveredNode = null;
+
+    function handleCanvasMouseMove(e) {
+      const rect = canvas.getBoundingClientRect();
+      
+      // Map mouse physically scaled positions back to the logical coordinate boundaries
+      const mouseX = (e.clientX - rect.left) * (TOPO_WIDTH / rect.width);
+      const mouseY = (e.clientY - rect.top) * (TOPO_HEIGHT / rect.height);
+
+      const profile = CAR_PROFILES[selectedProfileIndex];
+      const startX = 140;
+      const endX = TOPO_WIDTH - 140;
+      const centerY = TOPO_HEIGHT / 2;
+
+      let found = null;
+      profile.nodes.forEach(node => {
+        const nx = startX + (endX - startX) * node.xFactor;
+        const ny = centerY + node.y;
+        
+        ctx.font = 'bold 8.5px "Inter", sans-serif';
+        const labelWidth = ctx.measureText(node.label).width;
+        const boxWidth = Math.max(115, Math.ceil(labelWidth) + 20);
+        const boxHeight = 38;
+
+        if (
+          mouseX >= nx - boxWidth/2 &&
+          mouseX <= nx + boxWidth/2 &&
+          mouseY >= ny - boxHeight/2 &&
+          mouseY <= ny + boxHeight/2
+        ) {
+          found = node;
+        }
+      });
+
+      if (found) {
+        hoveredNode = found;
+        canvas.style.cursor = 'pointer';
+        
+        // Show Tooltip
+        const tooltip = document.getElementById('nodeTooltip');
+        tooltip.style.left = `${e.clientX - rect.left + 15}px`;
+        tooltip.style.top = `${e.clientY - rect.top + 15}px`;
+        tooltip.classList.remove('hidden');
+
+        document.getElementById('tooltipTitle').innerText = found.label;
+        document.getElementById('tooltipStatus').innerText = found.active || found.id === 'gateway' ? 'ACTIVE' : 'STANDBY';
+        document.getElementById('tooltipStatus').className = found.highlight ? "font-bold text-rose-500 animate-pulse" : "font-bold text-emerald-400";
+        document.getElementById('tooltipId').innerText = found.id === 'gateway' ? 'GATEWAY (FIREWALL)' : 'ECU_NODE_ARMED';
+        document.getElementById('tooltipRole').innerText = found.id === 'gateway' ? 'Intrusion Detection Gateway' : 'Automotive Transceiver (ECU)';
+        document.getElementById('tooltipDesc').innerText = getCustomNodeDescription(found.id);
+      } else {
+        hoveredNode = null;
+        canvas.style.cursor = 'default';
+        document.getElementById('nodeTooltip').classList.add('hidden');
+      }
+    }
+
+    function handleCanvasClick(e) {
+      if (hoveredNode) {
+        addSystemLog(`NODE_QUERY: Query sent to [${hoveredNode.label}]. Loop Integrity: 100%`, 'info');
+      }
+    }
+
+    function getCustomNodeDescription(id) {
+      switch (id) {
+        case 'vcu': return 'VCU: Manages throttle inputs, electronic powertrain switches, battery status and shifter hash validations.';
+        case 'bms': return 'BMS: Monitors cells, thermal cooling valve speeds, contactors and high-voltage balance indicators.';
+        case 'mcu': return 'MCU: Computes high-speed dynamic stator torque, rotor temperature and regen deceleration pressures.';
+        case 'gateway': return 'Gateway: Protocol Firewall filtering priority arbitration payloads and guarding network integrity.';
+        case 'adas': return 'ADAS: Ultrasonic radar monitoring road obstacles, trajectory hazards and braking alerts.';
+        case 'eps': return 'EPS: Controls steering wheel assistance motor and self-steering hydraulic correction loops.';
+        case 'aj133': return 'AJ133: Dynamic combustion loops, throttle pressure, and supercharger safety indicators.';
+        case 'susp': return 'Suspension: Air damper strut controllers and chassis height compensations.';
+        case 'tr2': return 'Terrain: Soil surface friction calculations and differential locker systems.';
+        case 'kryotec': return 'Kryotec: Exhaust gas loop, turbo pressure rates, and throttle control.';
+        case 'esp': return 'ESP: Anti-lock braking systems and wheels acceleration stabilizers.';
+        case 'bcm': return 'BCM: Cabin electronics, indicator sweeps, and convenience module control.';
+        default: return 'Automotive ECU Controller';
+      }
+    }
+
+    // -----------------------------------------------------------------
+    // High-Fidelity Sliding Telemetry Loop (Every 100ms matches React)
+    // -----------------------------------------------------------------
+    function startSlidingTelemetryLoop() {
+      setInterval(() => {
+        if (!isPlaying) return;
+
+        // Calculate sliding telemetry values
+        let targetFreq = 250;
+        let targetEntropy = 0.5;
+        let targetBusLoad = 22;
+
+        if (currentMode === 'DOS') {
+          targetFreq = Math.floor(750 + Math.random() * 120);
+          targetEntropy = parseFloat((0.2 + Math.random() * 0.15).toFixed(2));
+          targetBusLoad = Math.floor(82 + Math.random() * 14);
+        } else if (currentMode === 'FUZZ') {
+          targetFreq = Math.floor(450 + Math.random() * 80);
+          targetEntropy = parseFloat((2.4 + Math.random() * 0.4).toFixed(2));
+          targetBusLoad = Math.floor(62 + Math.random() * 12);
+        } else if (currentMode === 'SPOOF') {
+          targetFreq = Math.floor(280 + Math.random() * 40);
+          targetEntropy = parseFloat((1.6 + Math.random() * 0.3).toFixed(2));
+          targetBusLoad = Math.floor(28 + Math.random() * 6);
+        } else {
+          targetFreq = Math.floor(220 + Math.random() * 30);
+          targetEntropy = parseFloat((0.4 + Math.random() * 0.2).toFixed(2));
+          targetBusLoad = Math.floor(18 + Math.random() * 4);
+        }
+
+        // Check sliders thresholds rule violation triggers (Frequency alarm)
+        if (targetFreq > ruleLimits.DOS) {
+          document.getElementById('ruleDosBadge').innerText = 'TRIPPED';
+          document.getElementById('ruleDosBadge').className = 'text-[9px] bg-rose-500 text-white font-mono font-semibold px-1.5 py-0.5 rounded border border-rose-600 animate-pulse';
+        } else {
+          document.getElementById('ruleDosBadge').innerText = 'GUARD ARMED';
+          document.getElementById('ruleDosBadge').className = 'text-[9px] bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-mono font-semibold px-1.5 py-0.5 rounded border border-emerald-500/20';
+        }
+
+        // Entropy alarm
+        if (targetEntropy > ruleLimits.Entropy) {
+          document.getElementById('ruleEntropyBadge').innerText = 'TRIPPED';
+          document.getElementById('ruleEntropyBadge').className = 'text-[9px] bg-rose-500 text-white font-mono font-semibold px-1.5 py-0.5 rounded border border-rose-600 animate-pulse';
+        } else {
+          document.getElementById('ruleEntropyBadge').innerText = 'GUARD ARMED';
+          document.getElementById('ruleEntropyBadge').className = 'text-[9px] bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-mono font-semibold px-1.5 py-0.5 rounded border border-emerald-500/20';
+        }
+
+        // Push values to sliding arrays
+        freqHistory.push(targetFreq);
+        if (freqHistory.length > 50) freqHistory.shift();
+
+        entropyHistory.push(targetEntropy);
+        if (entropyHistory.length > 50) entropyHistory.shift();
+
+        // Update indicators
+        document.getElementById('metricMsgSpeed').innerText = targetFreq + ' Hz';
+        document.getElementById('metricEntropy').innerText = targetEntropy + ' bits';
+        document.getElementById('metricBusLoad').innerText = targetBusLoad + '%';
+      }, 100);
+    }
+
+    // -----------------------------------------------------------------
+    // High Performance Rendering Loop
+    // -----------------------------------------------------------------
+    function animationLoop() {
+      // 1. Draw Topology Bus Map
+      drawTopology();
+
+      // 2. Draw Real-time Dual Canvas Graphs
+      drawDualTelemetryCharts();
+
+      requestAnimationFrame(animationLoop);
+    }
+
+    function drawTopology() {
+      const rect = canvas.getBoundingClientRect();
+      
+      // Setup correct drawing resolution buffer
+      if (canvas.width !== rect.width * window.devicePixelRatio || canvas.height !== rect.height * window.devicePixelRatio) {
+        canvas.width = rect.width * window.devicePixelRatio;
+        canvas.height = rect.height * window.devicePixelRatio;
+      }
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      ctx.save();
+      // Apply DPI first, then scale standard logical 800x260 coordinate space down
+      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+      ctx.scale(rect.width / TOPO_WIDTH, rect.height / TOPO_HEIGHT);
+
+      const isDarkTheme = document.documentElement.classList.contains('dark');
+
+      // Clear stage background
+      ctx.fillStyle = isDarkTheme ? '#0F172A' : '#FFFFFF';
+      ctx.fillRect(0, 0, TOPO_WIDTH, TOPO_HEIGHT);
+
+      // Draw standard modern grid backdrop dot markers
+      ctx.fillStyle = isDarkTheme ? 'rgba(148, 163, 184, 0.08)' : 'rgba(148, 163, 184, 0.12)';
+      const dotSpacing = 20;
+      for (let gx = 0; gx < TOPO_WIDTH; gx += dotSpacing) {
+        for (let gy = 0; gy < TOPO_HEIGHT; gy += dotSpacing) {
+          ctx.beginPath();
+          ctx.arc(gx, gy, 1.2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      const startX = 140;
+      const endX = TOPO_WIDTH - 140;
+      const centerY = TOPO_HEIGHT / 2;
+
+      // Draw Differential twisted physical bus lines (CAN High & Low)
+      ctx.save();
+      ctx.lineWidth = 2.5;
+      
+      // CAN High (Green Line representation)
+      ctx.strokeStyle = isDarkTheme ? 'rgba(16, 185, 129, 0.35)' : 'rgba(16, 185, 129, 0.22)';
+      ctx.beginPath();
+      ctx.moveTo(startX, centerY - 6);
+      ctx.lineTo(endX, centerY - 6);
+      ctx.stroke();
+
+      // CAN Low (Blue Line representation)
+      ctx.strokeStyle = isDarkTheme ? 'rgba(59, 130, 246, 0.35)' : 'rgba(59, 130, 246, 0.22)';
+      ctx.beginPath();
+      ctx.moveTo(startX, centerY + 6);
+      ctx.lineTo(endX, centerY + 6);
+      ctx.stroke();
+      ctx.restore();
+
+      // Terminal End Resistors (120 Ω)
+      const drawResistor = (rx, label) => {
+        ctx.save();
+        ctx.fillStyle = isDarkTheme ? '#1E293B' : '#F8FAFC';
+        ctx.strokeStyle = isDarkTheme ? '#334155' : '#E2E8F0';
+        ctx.lineWidth = 1.5;
+        
+        ctx.beginPath();
+        ctx.roundRect(rx - 15, centerY - 15, 30, 30, 4);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = isDarkTheme ? '#F1F5F9' : '#475569';
+        ctx.font = 'bold 8px "JetBrains Mono", monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('120 Ω', rx, centerY - 2);
+        
+        ctx.fillStyle = isDarkTheme ? '#64748B' : '#94a3b8';
+        ctx.font = '7px sans-serif';
+        ctx.fillText(label, rx, centerY + 8);
+        ctx.restore();
+      };
+
+      drawResistor(startX - 25, 'TERM_L');
+      drawResistor(endX + 25, 'TERM_R');
+
+      // Map profiles nodes to logical grid coordinates
+      const profile = CAR_PROFILES[selectedProfileIndex];
+      const nodes = profile.nodes.map(node => ({
+        ...node,
+        x: startX + (endX - startX) * node.xFactor,
+        y: centerY + node.y
+      }));
+
+      // Draw stub lines connecting nodes to the backbone
+      nodes.forEach(node => {
+        ctx.save();
+        ctx.strokeStyle = isDarkTheme ? 'rgba(148, 163, 184, 0.2)' : 'rgba(148, 163, 184, 0.4)';
+        ctx.lineWidth = 1.2;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(node.x, node.y);
+        ctx.lineTo(node.x, centerY);
+        ctx.stroke();
+        ctx.restore();
+
+        // Node Container (Exactly matching colors and alignments)
+        ctx.save();
+        ctx.font = 'bold 8.5px "Inter", sans-serif';
+        const labelWidth = ctx.measureText(node.label).width;
+        const boxWidth = Math.max(115, Math.ceil(labelWidth) + 20);
+        const boxHeight = 38;
+
+        ctx.fillStyle = isDarkTheme ? '#1E293B' : '#FFFFFF';
+        
+        if (node.highlight) {
+          ctx.strokeStyle = currentMode === 'NORMAL' 
+            ? '#10b981' 
+            : currentMode === 'DOS' 
+              ? '#ef4444' 
+              : currentMode === 'SPOOF'
+                ? '#f97316' 
+                : '#a855f7';
+          ctx.lineWidth = 2;
+          ctx.shadowBlur = 8;
+          ctx.shadowColor = ctx.strokeStyle;
+        } else {
+          ctx.strokeStyle = isDarkTheme ? '#334155' : '#CBD5E1';
+          ctx.lineWidth = 1;
+        }
+
+        ctx.beginPath();
+        ctx.roundRect(node.x - boxWidth / 2, node.y - boxHeight / 2, boxWidth, boxHeight, 6);
+        ctx.fill();
+        ctx.stroke();
+        ctx.shadowBlur = 0; // reset glow shadow
+
+        // Node ID Indicator Dot
+        ctx.fillStyle = node.color;
+        ctx.beginPath();
+        ctx.arc(node.x - boxWidth / 2 + 10, node.y - boxHeight / 2 + 10, 3, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Node ID Label
+        ctx.fillStyle = isDarkTheme ? '#64748B' : '#94a3b8';
+        ctx.font = 'bold 6.5px "JetBrains Mono", monospace';
+        ctx.textAlign = 'left';
+        ctx.fillText(node.id.toUpperCase(), node.x - boxWidth / 2 + 16, node.y - boxHeight / 2 + 12);
+
+        // Centered Node Label (FIXED: Uses center alignment inside boxes to stop overlaps!)
+        ctx.fillStyle = isDarkTheme ? '#F1F5F9' : '#1e293b';
+        ctx.font = 'bold 8.5px "Inter", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(node.label, node.x, node.y + 1);
+
+        // Subtext / Active status log indicators
+        ctx.font = '7.5px "JetBrains Mono", monospace';
+        if (node.highlight) {
+          if (currentMode === 'NORMAL') {
+            ctx.fillStyle = '#059669';
+            ctx.fillText('IDS: ARMED', node.x, node.y + 11);
+          } else if (currentMode === 'DOS') {
+            ctx.fillStyle = '#dc2626';
+            ctx.fillText('ALERT: FLOOD', node.x, node.y + 11);
+          } else if (currentMode === 'SPOOF') {
+            ctx.fillStyle = '#ea580c';
+            ctx.fillText('ALERT: SPOOF', node.x, node.y + 11);
+          } else {
+            ctx.fillStyle = '#7c3aed';
+            ctx.fillText('ALERT: FUZZ', node.x, node.y + 11);
+          }
+        } else {
+          ctx.fillStyle = isDarkTheme ? '#94A3B8' : '#64748b';
+          ctx.fillText('ACTIVE', node.x, node.y + 11);
+        }
+        ctx.restore();
+      });
+
+      // Render flowing packet sparks
+      if (isPlaying) {
+        for (let i = canvasPackets.length - 1; i >= 0; i--) {
+          const pkt = canvasPackets[i];
+          pkt.update(packetSpeedMultiplier);
+          pkt.draw(ctx, centerY);
+
+          if (pkt.progress >= 1.0) {
+            // Trigger particle explosions at targets
+            for (let k = 0; k < 12; k++) {
+              canvasParticles.push(new Particle(pkt.targetX, pkt.targetY, pkt.color));
+            }
+            canvasPackets.splice(i, 1);
+          }
+        }
+      }
+
+      // Render floating burst particles
+      for (let i = canvasParticles.length - 1; i >= 0; i--) {
+        const p = canvasParticles[i];
+        p.update();
+        p.draw(ctx);
+        if (p.alpha <= 0) {
+          canvasParticles.splice(i, 1);
+        }
+      }
+
+      ctx.restore();
+    }
+
+    // -----------------------------------------------------------------
+    // Live Real-Time Double Charts Custom Rendering (Canvas-drawn)
+    // -----------------------------------------------------------------
+    function drawDualTelemetryCharts() {
+      // 1. Draw Frequency Chart
+      drawTelemetryLineChart({
+        canvasEl: freqCanvas,
+        gCtx: fCtx,
+        history: freqHistory,
+        maxVal: 1000,
+        threshold: ruleLimits.DOS,
+        unit: 'Hz',
+        color: '#10b981', // green
+        label: 'PAST 5 SECONDS'
+      });
+
+      // 2. Draw Shannon Entropy Chart
+      drawTelemetryLineChart({
+        canvasEl: entropyCanvas,
+        gCtx: eCtx,
+        history: entropyHistory,
+        maxVal: 3.0,
+        threshold: ruleLimits.Entropy,
+        unit: 'bits',
+        color: '#a855f7', // purple
+        label: 'SHANNON DYNAMIC'
+      });
+    }
+
+    function drawTelemetryLineChart(config) {
+      const { canvasEl, gCtx, history, maxVal, threshold, unit, color } = config;
+      const rect = canvasEl.getBoundingClientRect();
+      
+      if (canvasEl.width !== rect.width * window.devicePixelRatio || canvasEl.height !== rect.height * window.devicePixelRatio) {
+        canvasEl.width = rect.width * window.devicePixelRatio;
+        canvasEl.height = rect.height * window.devicePixelRatio;
+      }
+
+      gCtx.clearRect(0, 0, canvasEl.width, canvasEl.height);
+
+      gCtx.save();
+      gCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+      const width = rect.width;
+      const height = rect.height;
+      
+      const padLeft = 32;
+      const padRight = 10;
+      const padTop = 10;
+      const padBottom = 15;
+
+      const chartW = width - padLeft - padRight;
+      const chartH = height - padTop - padBottom;
+      const isDarkTheme = document.documentElement.classList.contains('dark');
+
+      // Grid helper lines
+      gCtx.strokeStyle = isDarkTheme ? 'rgba(51, 65, 85, 0.4)' : 'rgba(226, 232, 240, 0.6)';
+      gCtx.lineWidth = 1;
+      
+      // Horizontal lines
+      const rows = 3;
+      for (let i = 0; i <= rows; i++) {
+        const y = padTop + (chartH / rows) * i;
+        gCtx.beginPath();
+        gCtx.moveTo(padLeft, y);
+        gCtx.lineTo(width - padRight, y);
+        gCtx.stroke();
+
+        // Left axis labels
+        gCtx.fillStyle = isDarkTheme ? '#64748b' : '#94a3b8';
+        gCtx.font = '7px "JetBrains Mono", monospace';
+        gCtx.textAlign = 'right';
+        gCtx.textBaseline = 'middle';
+        const axisVal = maxVal - (maxVal / rows) * i;
+        gCtx.fillText(axisVal.toFixed(maxVal < 10 ? 1 : 0), padLeft - 4, y);
+      }
+
+      // Vertical lines
+      const cols = 5;
+      for (let i = 0; i <= cols; i++) {
+        const x = padLeft + (chartW / cols) * i;
+        gCtx.beginPath();
+        gCtx.moveTo(x, padTop);
+        gCtx.lineTo(x, height - padBottom);
+        gCtx.stroke();
+      }
+
+      if (history.length < 2) {
+        gCtx.restore();
+        return;
+      }
+
+      // Map points
+      const points = history.map((val, idx) => {
+        const x = padLeft + (chartW / (history.length - 1)) * idx;
+        const normY = Math.min(1, Math.max(0, val / maxVal));
+        const y = height - padBottom - chartH * normY;
+        return { x, y };
+      });
+
+      // Draw tripwire threshold dashed line
+      const thresholdNorm = Math.min(1, Math.max(0, threshold / maxVal));
+      const thresholdY = height - padBottom - chartH * thresholdNorm;
+
+      gCtx.save();
+      gCtx.strokeStyle = 'rgba(239, 68, 68, 0.5)';
+      gCtx.lineWidth = 1.2;
+      gCtx.setLineDash([4, 4]);
+      gCtx.beginPath();
+      gCtx.moveTo(padLeft, thresholdY);
+      gCtx.lineTo(width - padRight, thresholdY);
+      gCtx.stroke();
+      gCtx.restore();
+
+      // Tripwire threshold label tag overlay
+      gCtx.save();
+      gCtx.fillStyle = 'rgba(239, 68, 68, 0.08)';
+      gCtx.strokeStyle = 'rgba(239, 68, 68, 0.4)';
+      gCtx.lineWidth = 1;
+      gCtx.beginPath();
+      gCtx.roundRect(width - padRight - 55, thresholdY - 10, 55, 9, 2);
+      gCtx.fill();
+      gCtx.stroke();
+
+      gCtx.fillStyle = '#ef4444';
+      gCtx.font = 'bold 5.5px "JetBrains Mono", monospace';
+      gCtx.textAlign = 'center';
+      gCtx.textBaseline = 'middle';
+      gCtx.fillText(`TRIPWIRE: ${threshold}${unit}`, width - padRight - 27.5, thresholdY - 5.5);
+      gCtx.restore();
+
+      // Draw line gradient fill area
+      gCtx.save();
+      const areaGrad = gCtx.createLinearGradient(0, padTop, 0, height - padBottom);
+      areaGrad.addColorStop(0, color + '18');
+      areaGrad.addColorStop(1, color + '00');
+      gCtx.fillStyle = areaGrad;
+
+      gCtx.beginPath();
+      gCtx.moveTo(points[0].x, height - padBottom);
+      for (let i = 0; i < points.length; i++) {
+        gCtx.lineTo(points[i].x, points[i].y);
+      }
+      gCtx.lineTo(points[points.length - 1].x, height - padBottom);
+      gCtx.closePath();
+      gCtx.fill();
+      gCtx.restore();
+
+      // Draw active line outline
+      gCtx.save();
+      gCtx.beginPath();
+      gCtx.moveTo(points[0].x, points[0].y);
+      for (let i = 1; i < points.length; i++) {
+        gCtx.lineTo(points[i].x, points[i].y);
+      }
+      gCtx.strokeStyle = color;
+      gCtx.lineWidth = 1.5;
+      gCtx.stroke();
+      gCtx.restore();
+
+      gCtx.restore();
+    }
+  </script>
+</body>
+</html>
