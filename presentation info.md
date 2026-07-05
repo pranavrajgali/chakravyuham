@@ -45,19 +45,18 @@ The system operates as a multi-stage pipeline:
     - Raw CAN logs from HCRL and OTIDS datasets are parsed
     - Messages are cleaned, timestamp-normalized, and grouped by ECU arbitration ID
 2. **Windowing & Session Formation**
-    - Continuous CAN streams are segmented into fixed-size windows (e.g., 200 messages)
-    - Each window represents a short behavioral snapshot of vehicle communication
-    - Session-aware partitioning ensures temporal consistency and prevents leakage
+    - Continuous CAN traffic streams are segmented using sliding message-count windows of size $N=100$ and step $S=50$.
+    - Message-count-based windowing ensures a stable, constant number of packets per window. This is mathematically necessary to compute reliable statistical metrics—such as variance, entropy, and Hamming distances—avoiding division-by-zero or numerical instability when the vehicle is idling or stationary.
+    - Session-aware partitioning preserves temporal order and prevents train-test leakage.
 3. **Feature Extraction Layer**  
-    Instead of using raw CAN IDs as features, the system extracts behavioral signals:
-    - Inter-arrival time (IAT)
-    - Timing jitter and burstiness
-    - Message frequency per ID
-    - Payload entropy (randomness of data bytes)
-    - Hamming distance between consecutive payloads
-    - Transition entropy between ECUs
-    - Graph structure statistics (degree, connectivity patterns)
-    - Rolling baseline z-score normalization
+    Instead of using raw CAN IDs, the system extracts a Unified Standard Feature Vector ($V_W$):
+    $$V_W = [ \mu_{IAT}, \sigma^2_{IAT}, F_{window}, \mu_{Entropy}, \sigma^2_{Entropy}, \mu_{Hamming}, U_{ID\_Ratio} ]$$
+    *   **Inter-Arrival Time Mean ($\mu_{IAT}$)**: Average time elapsed between transmissions grouped by ID; flags flooding (DoS).
+    *   **Timing Jitter ($\sigma^2_{IAT}$)**: Variance in inter-arrival times grouped by ID; flags clock drift and spoofing anomalies.
+    *   **Message Frequency ($F_{window}$)**: Bus-wide packet rate $F_{window} = \frac{N_W}{W}$; identifies volume anomalies.
+    *   **Unique ID Ratio ($U_{ID\_Ratio}$)**: Defined as $U_{ID\_Ratio} = \frac{\text{Unique IDs}}{N_W}$. Drops to $\approx 0$ during DoS flooding and spikes to $\approx 1$ during random Fuzzing.
+    *   **Payload Shannon Entropy ($\mu_{Entropy}$, $\sigma^2_{Entropy}$)**: Randomness of data bytes $H(X) = - \sum p_i \log_2 p_i$. Highlights high-entropy Fuzzy injections.
+    *   **Payload Hamming Distance ($\mu_{Hamming}$)**: Bit changes between consecutive payloads of the same ID; flags physical sensor hacks independent of raw values.
 4. **Graph Construction (GCN Pathway)**  
     Each window is converted into a communication graph:
     - Nodes represent CAN arbitration IDs (ECUs)
@@ -65,9 +64,10 @@ The system operates as a multi-stage pipeline:
     - Edge weights capture transition frequency
     - Graph-level features summarize global communication behavior
 5. **Modeling Layer**  
-    Two parallel modeling approaches are used:
-    - **GBDT Models (XGBoost / LightGBM):** classify windows using engineered statistical features
-    - **Graph Convolutional Network (GCN):** learns structural anomalies from ECU interaction graphs
+    Three modeling approaches are compared:
+    - **GBDT Models (XGBoost / LightGBM):** classify windows using the engineered statistical feature vector.
+    - **Graph Convolutional Network (GCN):** learns relational/structural anomalies from node transition graphs.
+    - **MosaicCNN (2D CNN Baseline):** processes binary $32 \times 32$ matrix images (mosaics) of ID/payload sequences to learn spatial injection patterns.
 6. **Classification Output**
     - Binary or multiclass prediction:
         - Normal traffic
@@ -92,7 +92,15 @@ Unlike conventional IDS pipelines, Chakravyuham incorporates:
 - **Deployment-aware design**
     - Lightweight models suitable for ECU-level inference
     - Edge-friendly architecture with minimal computational overhead
-    - 
+
+### Candidate Model Architectures Summary
+| Model Class | Algorithm | Memory Size | Avg Latency | Core Structural Role |
+|---|---|---|---|---|
+| **Tabular ML** | **XGBoost** | **0.95 MB** | **0.38 ms** | Bounded-depth GBDT; fast inference on CPU |
+| **Tabular ML** | **LightGBM** | **1.34 MB** | **1.18 ms** | Leaf-wise GBDT; champion edge classifier |
+| **Tabular ML** | **Random Forest** | **2.19 MB** | **2.10 ms** | Decision tree bagging; statistical baseline |
+| **Graph Neural Net** | **GCNIDS** | **0.0033 MB** | **10.93 ms** | Spatial-relational convolution on ECU graphs |
+| **Image CNN** | **MosaicCNN** | **0.74 MB** | **1.52 ms** | 2D spatial convolution on binary packet grids |
 
 ## Engineering Challenges & Methodology Evolution
 Chakravyuham was not developed as a static pipeline but evolved through multiple iterative stages of experimentation, evaluation, and correction. While initial baselines showed strong benchmark performance on standard evaluation setups, deeper investigation revealed that many of these results were influenced by dataset artifacts, leakage patterns, and shortcut learning rather than true behavioral understanding of CAN bus traffic. This section outlines the key engineering discoveries that shaped the final methodology.
@@ -353,21 +361,24 @@ Combine:
 - adaptive ML-based anomaly detection
 for reliable real-world deployment.
 
-### **Edge Deployment → Lightweight Inference Pipeline**
-Automotive systems operate under strict latency and compute constraints, requiring models to be optimized for embedded execution.
+### **Edge Deployment and Lightweight Inference Pipeline**
+Automotive systems operate under strict real-time execution constraints and extremely limited memory limits. We evaluated our models on constrained edge configurations to prove feasibility:
+- **LightGBM**: Serialized size of **1.34 MB** (down to **0.68 MB - 0.85 MB**) with an inference latency of **0.92 ms - 1.18 ms**.
+- **XGBoost**: Serialized size of **0.95 MB** (down to **0.38 MB - 0.69 MB**) with an inference latency of **0.38 ms**.
+- **GCNIDS**: Ultra-lightweight weights size of **0.0033 MB** with an inference latency of **10.3 ms** (graph construction overhead).
+- **MosaicCNN**: Serialized size of **0.74 MB** with a latency of **1.52 ms**.
 
 **Proposed solution**
-- Convert tree models to C (Treelite / m2cgen)
-- Maintain bounded-memory feature extraction
-- Optimize inference for real-time execution
+- Convert tree models directly to optimized C code (Treelite / m2cgen) to run without runtimes or compilers.
+- Bounded-memory rolling circular buffers for real-time sliding window telemetry extraction.
+- Real-time inference optimization on embedded microcontrollers.
 
 **Prototype scope**
-- Raspberry Pi / Jetson / dev board benchmarking
-- real-time latency validation
-- memory-constrained execution testing
+- Raspberry Pi 4 and NVIDIA Jetson Nano benchmarking.
+- Continuous validation of CPU usage, execution jitter, and heap memory allocations.
 
 **Objective**
-Ensure the system is **deployment-feasible under ECU constraints**
+Ensure the system is **deployment-feasible under embedded ECU constraints**
 
 ### **VSOC-Lite Feedback Loop → Controlled Model Evolution**
 Real-world IDS systems must continuously adapt without compromising safety.
@@ -416,44 +427,16 @@ This roadmap transforms Chakravyuham from a dataset-trained prototype into a **d
 Each component directly maps to a known limitation in either academic IDS systems or commercial automotive security deployments.
 
 ## Tech stack
-### **Programming & Development**
-- **Python** — Core development language used for data processing, feature engineering, machine learning, and backend pipeline development.
-- **TypeScript, React 19, Node.js and Vite** — Used for developing the interactive dashboard and frontend interface.
-
-### **Data Processing**
-- **Pandas** — Dataset loading, preprocessing, feature extraction and pipeline management.
-- **NumPy** — Numerical computation, statistical feature calculation and array operations.
-
-### **Machine Learning**
-- **Scikit-learn** — Data preprocessing, evaluation metrics, class balancing and baseline models.
-- **XGBoost** — Primary tree-based intrusion detection model optimized for fast inference.
-- **LightGBM** — Lightweight gradient boosting framework evaluated for edge deployment.
-- **CatBoost** — Evaluated for handling categorical CAN-related features.
-- **Random Forest** — Used as a baseline model for comparison.
-
-### **Graph Neural Networks**
-- **PyTorch**
-- **PyTorch Geometric (PyG)**
-Used to implement and evaluate Graph Convolutional Network (GCN) based intrusion detection models operating on CAN communication graphs.
-
-### **Explainable AI**
-- **SHAP (TreeSHAP)**
-Used to analyse feature importance, verify model behaviour and identify shortcut learning caused by dataset artifacts.
-
-### **Edge Deployment**
-- **ONNX** — Model serialization for portable deployment.
-- **Treelite / m2cgen** _(planned)_ — Conversion of trained tree models into optimized C code suitable for embedded deployment.
-
-### **Backend & Dashboard**
-- **FastAPI + Uvicorn** — Backend APIs and real-time communication.
-- **Streamlit** — Prototype visualization dashboard.
-- **Tailwind CSS** — User interface styling.
-- **Framer Motion** — Interactive animations.
-- **Matplotlib, Seaborn and Plotly** — Data visualization and performance reporting.
-
-### **Datasets**
-- **HCRL Car-Hacking Dataset (Korea University)** — Primary dataset used for model development and experimentation.
-- **OTIDS Dataset (KIA Soul)** — Used for evaluating cross-dataset generalization.
+| Category | Tooling / Libraries | Implementation Role |
+|---|---|---|
+| **Programming** | Python, TypeScript, Node.js, Vite | Core backend models, API server, and React 19 interactive dashboard |
+| **Data Handling** | Pandas, NumPy | Ingestion of raw logs, rolling statistics, and feature normalization |
+| **Machine Learning** | Scikit-learn, XGBoost, LightGBM | Tabular model classification, parameter tuning, and evaluation benchmarks |
+| **Graph Networks** | PyTorch, PyTorch Geometric (PyG) | Graph construction and 2D graph convolutional model execution |
+| **Explainability** | SHAP (TreeSHAP) | Post-training explainable AI checks and feature importance charts |
+| **Edge Deployment** | ONNX, Treelite, m2cgen | Lightweight model serialization and compiled tree-to-C edge targets |
+| **Dashboard Server** | FastAPI, Tailwind CSS, Framer Motion | Live telemetry streaming, telemetry average aggregates, and log console |
+| **Datasets** | HCRL (Car-Hacking), OTIDS (KIA Soul) | Vehicular raw attack logs and baseline cross-validation databases |
 
 ## References
 ### **Academic References**

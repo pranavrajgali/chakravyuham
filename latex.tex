@@ -9,7 +9,7 @@
 \usetikzlibrary{shapes.geometric, arrows, positioning}
 
 \title{\textbf{Chakravyuham: Automotive Intrusion Detection System}}
-\author{}
+\author{Abhinav \and Pranav Raj \and Srinidhi \and Tejasri \and Darshitha}
 \date{}
 
 \begin{document}
@@ -91,39 +91,40 @@ Chakravyuham processes raw in-vehicle communication stream packets through a str
     \item Dataset combination occurs only after preprocessing/feature extraction where appropriate, preventing artificial temporal mixing.
 \end{itemize}
 
-\subsubsection{2. Time-Based Windowing}
+\subsubsection{2. Message-Count-Based Windowing}
 \begin{itemize}[noitemsep]
-    \item Continuous CAN traffic is segmented into \textbf{fixed-duration time windows}.
-    \item Each window captures a short behavioural snapshot of vehicle communication.
-    \item Time-based windows were chosen instead of count-based windows because CAN traffic density varies with vehicle state; fixed-duration windows preserve consistent temporal context for learning.
+    \item Continuous CAN traffic streams are segmented using sliding message-count windows of size $N=100$ and step $S=50$.
+    \item Each window captures a stable, fixed-size sequence of vehicle communication.
+    \item Message-count-based windowing was selected over fixed-time windowing because it guarantees a constant number of packets per window. This consistency is mathematically necessary to compute stable statistical metrics—such as variance, entropy, and Hamming distances—preventing division-by-zero or numerical instability when the vehicle is idling or stationary and transmission frequency drops.
     \item Session-aware splitting preserves chronology and prevents train-test leakage.
     \item Unlike conventional random frame-level train/test splitting, chronological block-wise partitioning prevents temporally adjacent CAN frames from appearing in both training and evaluation. Since CAN traffic exhibits strong temporal correlation, this produces a substantially more realistic estimate of deployment performance and reduces leakage-driven optimism.
 \end{itemize}
 
 \subsubsection{3. Behavioural Feature Extraction}
-Instead of relying on raw CAN identifiers, Chakravyuham represents every communication window using behavioural descriptors that capture \textbf{how the network behaves} rather than \textbf{which ECU transmitted the message}. The chosen features were selected because they remain meaningful across different vehicles and attack scenarios, whereas raw identifiers often encode vehicle-specific information that does not generalize.
+Instead of relying on raw CAN identifiers, Chakravyuham represents every communication window using a Unified Standard Feature Vector ($V_W$) computed over sliding message-count windows:
 
-The features are grouped according to the type of behaviour they capture.
+$$V_W = [ \mu_{IAT}, \sigma^2_{IAT}, F_{window}, \mu_{Entropy}, \sigma^2_{Entropy}, \mu_{Hamming}, U_{ID\_Ratio} ]$$
 
-\paragraph{Traffic Behaviour}
+The feature vector encapsulates the following engineered behavioural signals:
+
+\paragraph{Timing \& Frequency Behaviour}
 \begin{itemize}[noitemsep]
-    \item \textbf{Message Frequency} – Number of messages transmitted by an ECU within a time window. Flooding attacks such as DoS typically produce abnormal transmission rates.
-    \item \textbf{Inter-Arrival Time (IAT)} – Time elapsed between consecutive transmissions from an ECU. Captures timing abnormalities introduced by injected traffic.
-    \item \textbf{Timing Jitter} – Variation in inter-arrival times. Identifies disruption to otherwise periodic CAN communication.
-    \item \textbf{Burstiness} – Measures whether messages arrive in sudden bursts or at a relatively uniform rate, helping distinguish coordinated attacks from normal traffic.
+    \item \textbf{Inter-Arrival Time (IAT) Mean ($\mu_{IAT}$)}: Measures the average time elapsed between consecutive transmissions grouped by ID, identifying volumetric anomalies such as DoS flooding.
+    \item \textbf{Jitter (IAT Variance $\sigma^2_{IAT}$)}: Measures variation in inter-arrival times grouped by ID, detecting clock drift and timing anomalies induced by spoofing.
+    \item \textbf{Message Frequency ($F_{window}$)}: Computed as $F_{window} = \frac{N_W}{W}$ bus-wide, detecting overall transmission density spikes.
+    \item \textbf{Unique ID Ratio ($U_{ID\_Ratio}$)}: Defined as $U_{ID\_Ratio} = \frac{\text{Unique IDs}}{N_W}$. This ratio drops to $\approx 0$ during DoS flooding attacks (as one ID dominates the window) and spikes to $\approx 1$ during random Fuzzing attacks.
 \end{itemize}
 
-\paragraph{Payload Behaviour}
+\paragraph{Payload \& Content Behaviour}
 \begin{itemize}[noitemsep]
-    \item \textbf{Payload Entropy} – Measures the randomness of payload bytes. Random injection attacks (e.g., Fuzzy attacks) generally exhibit much higher entropy than legitimate traffic.
-    \item \textbf{Payload Hamming Distance} – Measures the number of bit changes between consecutive payloads of the same message. Detects sudden abnormal payload variations while remaining independent of the actual payload value.
+    \item \textbf{Payload Shannon Entropy ($\mu_{Entropy}$, $\sigma^2_{Entropy}$)}: Computed as $H(X) = - \sum p_i \log_2 p_i$. Quantifies byte randomness; normal telemetry exhibits low entropy, while Fuzzy injection payloads exhibit high entropy.
+    \item \textbf{Payload Hamming Distance ($\mu_{Hamming}$)}: Measures the bitwise differences between consecutive payloads of the same ID, capturing anomalous physical state transitions (like fake RPM or speed spikes) independent of raw values.
 \end{itemize}
 
-\paragraph{Communication Behaviour}
+\paragraph{Structural \& Graph Behaviour (GCN Pathway)}
 \begin{itemize}[noitemsep]
-    \item \textbf{Transition Entropy} – Quantifies the uncertainty of communication transitions between ECUs. Malicious injections often alter normal communication sequences, increasing transition randomness.
-    \item \textbf{ECU Communication Statistics} – Capture how individual ECUs interact with the rest of the network through message exchange patterns.
-    \item \textbf{Graph Topology Metrics (GCN pathway)} – Describe the structural organization of the communication graph, allowing graph-based models to detect relational anomalies rather than isolated message anomalies.
+    \item \textbf{Edge Weights \& Directed Transitions}: Capture sequence transition statistics between ECUs.
+    \item \textbf{Graph Topology Metrics}: Describe the structural connectivity of the communication graph to detect topological anomalies.
 \end{itemize}
 
 \paragraph{Leakage Prevention}
@@ -190,6 +191,14 @@ Instead of treating each CAN message in isolation, the GCN pathway represents ev
     \item A final linear layer maps this representation to the attack categories being predicted, producing the window's classification.
 \end{itemize}
 
+\subsubsection{6. Image-Based Pipeline (MosaicCNN)}
+To establish a baseline for spatial-temporal representation learning directly on payloads, we implement a Convolutional Neural Network operating on raw CAN sequence images (MosaicCNN):
+\begin{itemize}[noitemsep]
+    \item \textbf{Image Construction (Mosaic Grid)}: The 29-bit CAN IDs (optionally compressed via a trained Autoencoder to 9 bits) are combined with byte payloads to form a $32 \times 32$ binary matrix window (the "Mosaic").
+    \item \textbf{Spatial Convolution}: The binary grid is fed into a 2D CNN with stacked Conv2D, MaxPool2D, and fully connected layers.
+    \item \textbf{Comparative Role}: MosaicCNN operates as a spatial pattern baseline, mapping high-frequency payload and ID transitions visually to detect injection anomalies.
+\end{itemize}
+
 \subsection{Key Design Philosophy}
 A core objective throughout Chakravyuham is to ensure that the models learn \textbf{behavioural characteristics of CAN traffic rather than memorizing dataset-specific patterns}.
 
@@ -218,11 +227,25 @@ Unlike conventional benchmark-driven IDS research, Chakravyuham is designed arou
     \item This enables architecture selection to be driven by engineering evidence rather than benchmark popularity.
 \end{itemize}
 
-\textbf{Deployment-oriented design}
-\begin{itemize}[noitemsep]
-    \item Prioritizes lightweight models suitable for embedded automotive hardware.
-    \item Considers inference latency, memory footprint and edge deployment from the earliest stages of development rather than as an afterthought.
 \end{itemize}
+
+\subsection{Candidate Model Architectures Summary}
+To provide a rigorous architectural comparison, we benchmark five different models ranging from traditional statistical classifiers to deep neural network pathways. Table~\ref{tab:models_summary} outlines their architectural configurations, serialized parameters, and theoretical roles in the defense ecosystem.
+
+\begin{table}[htbp]
+\centering
+\caption{Comparative Summary of Candidate Model Architectures}
+\label{tab:models_summary}
+\begin{tabular}{llccl}
+\toprule
+\textbf{Model Class} & \textbf{Algorithm} & \textbf{Memory Size} & \textbf{Avg Latency} & \textbf{Core Structural Role} \\ \midrule
+Tabular ML & XGBoost & 0.95 MB & 0.38 ms & Bounded-depth GBDT; fast inference on CPU \\
+Tabular ML & LightGBM & 1.34 MB & 1.18 ms & Leaf-wise GBDT; champion edge classifier \\
+Tabular ML & Random Forest & 2.19 MB & 2.10 ms & Decision tree bagging; statistical baseline \\
+Graph Neural Net & GCNIDS & 0.0033 MB & 10.93 ms & Spatial-relational convolution on ECU graphs \\
+Image CNN & MosaicCNN & 0.74 MB & 1.52 ms & 2D spatial convolution on binary packet grids \\ \bottomrule
+\end{tabular}
+\end{table}
 
 
 \section{Engineering Challenges \& Methodology Evolution}
@@ -584,24 +607,30 @@ Combine:
 \end{itemize}
 for reliable deployment feasibility.
 
-\subsection{Edge Deployment $\rightarrow$ Lightweight Inference Pipeline}
-Automotive systems require strict latency and compute constraints.
+\subsection{Edge Deployment and Lightweight Inference Pipeline}
+Automotive in-vehicle systems operate under strict real-time execution constraints and extremely limited memory limits. To demonstrate the real-world deployability of the Chakravyuham detection system on Electronic Control Units (ECUs), we benchmarked the models on constrained edge configurations:
+\begin{itemize}[noitemsep]
+    \item \textbf{LightGBM}: Serialized model size of \textbf{1.34 MB} (reducing to \textbf{0.68 MB - 0.85 MB} under downsampled configurations) with an average inference latency of \textbf{0.92 ms - 1.18 ms} per window.
+    \item \textbf{XGBoost}: Serialized model size of \textbf{0.95 MB} (reducing to \textbf{0.38 MB - 0.69 MB} under downsampled configurations) with a sub-millisecond inference latency of \textbf{0.38 ms}.
+    \item \textbf{GCNIDS}: Serialized weights size of \textbf{0.0033 MB} (extremely compact) with an average inference latency of \textbf{10.3 ms} (constrained by graph-construction overhead on low-cost hardware).
+    \item \textbf{MosaicCNN}: Serialized size of \textbf{0.74 MB} with a latency of \textbf{1.52 ms}.
+\end{itemize}
 
 \textbf{Proposed Solution}
 \begin{itemize}[noitemsep]
-    \item Tree models compiled to C (Treelite / m2cgen)
-    \item Bounded-memory feature extraction
-    \item Real-time inference optimization
+    \item Tree models compiled directly to optimized C code using compiled libraries (Treelite / m2cgen) to eliminate interpreter and runtime overhead.
+    \item Bounded-memory rolling circular arrays for real-time windowing and z-score baseline updates.
+    \item Real-time inference optimization on embedded microcontrollers.
 \end{itemize}
 
 \textbf{Prototype Scope}
 \begin{itemize}[noitemsep]
-    \item Raspberry Pi / Jetson / dev board benchmarking
-    \item Latency + memory validation under constrained conditions
+    \item Raspberry Pi 4 and NVIDIA Jetson Nano edge benchmarking.
+    \item Validation of CPU usage, execution jitter, and heap allocations under continuous CAN traffic simulation.
 \end{itemize}
 
 \textbf{Objective}
-Ensure \textbf{real-time feasibility under ECU constraints}
+Ensure \textbf{real-time feasibility under embedded ECU constraints}
 
 \subsection{Replay Attack Detection}
 The current prototype focuses on DoS, Fuzzy, and Impersonation attacks, which are well represented in the datasets used for development. Replay attacks require reasoning over long-term message sequences rather than short behavioral windows. Traditional ML models typically aren't capable of capturing the relevant attack patterns for such attacks. As future work, we plan to evaluate sequence-aware deep learning architectures (e.g., LSTMs, Temporal GNNs, or Transformers) for replay attack detection while investigating whether their computational requirements remain compatible with edge deployment constraints.
@@ -666,60 +695,26 @@ This roadmap transforms Chakravyuham from a dataset-trained prototype into a \te
 Each component directly maps to a known limitation in either academic IDS research or industrial automotive security systems.
 
 \section{Tech stack}
-\subsection{Programming \& Development}
-\begin{itemize}[noitemsep]
-    \item \textbf{Python} — Core development language used for data processing, feature engineering, machine learning, and backend pipeline development.
-    \item \textbf{TypeScript, React 19, Node.js and Vite} — Used for developing the interactive dashboard and frontend interface.
-\end{itemize}
+To facilitate rapid prototyping, validation, and dashboard visualization, we selected an enterprise-grade technology stack outlined in Table~\ref{tab:tech_stack}.
 
-\subsection{Data Processing}
-\begin{itemize}[noitemsep]
-    \item \textbf{Pandas} — Dataset loading, preprocessing, feature extraction and pipeline management.
-    \item \textbf{NumPy} — Numerical computation, statistical feature calculation and array operations.
-\end{itemize}
-
-\subsection{Machine Learning}
-\begin{itemize}[noitemsep]
-    \item \textbf{Scikit-learn} — Data preprocessing, evaluation metrics, class balancing and baseline models.
-    \item \textbf{XGBoost} — Primary tree-based intrusion detection model optimized for fast inference.
-    \item \textbf{LightGBM} — Lightweight gradient boosting framework evaluated for edge deployment.
-    \item \textbf{CatBoost} — Evaluated for handling categorical CAN-related features.
-    \item \textbf{Random Forest} — Used as a baseline model for comparison.
-\end{itemize}
-
-\subsection{Graph Neural Networks}
-\begin{itemize}[noitemsep]
-    \item \textbf{PyTorch}
-    \item \textbf{PyTorch Geometric (PyG)}
-\end{itemize}
-Used to implement and evaluate Graph Convolutional Network (GCN) based intrusion detection models operating on CAN communication graphs.
-
-\subsection{Explainable AI}
-\begin{itemize}[noitemsep]
-    \item \textbf{SHAP (TreeSHAP)}
-\end{itemize}
-Used to analyse feature importance, verify model behaviour and identify shortcut learning caused by dataset artifacts.
-
-\subsection{Edge Deployment}
-\begin{itemize}[noitemsep]
-    \item \textbf{ONNX} — Model serialization for portable deployment.
-    \item \textbf{Treelite / m2cgen} \textit{(planned)} — Conversion of trained tree models into optimized C code suitable for embedded deployment.
-\end{itemize}
-
-\subsection{Backend \& Dashboard}
-\begin{itemize}[noitemsep]
-    \item \textbf{FastAPI + Uvicorn} — Backend APIs and real-time communication.
-    \item \textbf{Streamlit} — Prototype visualization dashboard.
-    \item \textbf{Tailwind CSS} — User interface styling.
-    \item \textbf{Framer Motion} — Interactive animations.
-    \item \textbf{Matplotlib, Seaborn and Plotly} — Data visualization and performance reporting.
-\end{itemize}
-
-\subsection{Datasets}
-\begin{itemize}[noitemsep]
-    \item \textbf{HCRL Car-Hacking Dataset (Korea University)} — Primary dataset used for model development and experimentation.
-    \item \textbf{OTIDS Dataset (KIA Soul)} — Used for evaluating cross-dataset generalization.
-\end{itemize}
+\begin{table}[htbp]
+\centering
+\caption{Chakravyuham Development and Operations Technology Stack}
+\label{tab:tech_stack}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lll}
+\toprule
+\textbf{Category} & \textbf{Tooling / Libraries} & \textbf{Implementation Role} \\ \midrule
+\textbf{Programming} & Python, TypeScript, Node.js, Vite & Core backend research, FastAPI service, and React 19 dashboard \\
+\textbf{Data Handling} & Pandas, NumPy & Ingestion of raw logs, rolling statistics, and feature normalization \\
+\textbf{Machine Learning} & Scikit-learn, XGBoost, LightGBM & Statistical GBDT classification and latency evaluation \\
+\textbf{Graph Networks} & PyTorch, PyTorch Geometric (PyG) & 2D GCN spatial convolution and topological routing models \\
+\textbf{Explainability} & SHAP (TreeSHAP) & Anomaly contribution analysis and shortcut memorization checks \\
+\textbf{Edge Deployment} & ONNX, Treelite, m2cgen & Lightweight serialization and tree-to-C compilation targets \\
+\textbf{Dashboard} & FastAPI, Tailwind CSS, Framer Motion & Live dashboard log monitoring, charts, and telemetry averages \\
+\textbf{Datasets} & HCRL (Car-Hacking), OTIDS (KIA Soul) & Raw in-vehicle attack captures and cross-validation logs \\ \bottomrule
+\end{tabular}%
+\end{table}
 
 \section{References}
 \subsection{Academic References}
